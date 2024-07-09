@@ -1,0 +1,5 @@
+*.o
+*.hi
+app/Main
+Session.vim
+dist-newstyle
