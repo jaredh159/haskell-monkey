@@ -3,7 +3,7 @@ module Token (Token, TokenType(..)) where
 data Token = Token
   { typ :: TokenType
   , literal :: String
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data TokenType =
     Illegal

@@ -1,0 +1,5 @@
+packages:
+  haskell-monkey.cabal
+
+package haskell-monkey
+  ghc-options: -Werror

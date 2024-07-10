@@ -3,3 +3,4 @@
 app/Main
 Session.vim
 dist-newstyle
+.ghc.environment.*
