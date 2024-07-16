@@ -6,7 +6,7 @@ data Token = Token
   } deriving (Show, Eq)
 
 token :: TokenType -> String -> Token
-token t l = Token {typ =t, literal=l}
+token t l = Token {typ=t, literal=l}
 
 data TokenType =
     Illegal
