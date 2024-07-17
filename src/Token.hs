@@ -23,4 +23,17 @@ data TokenType =
   | RBrace
   | Function
   | Let
+  | Minus
+  | Bang
+  | Asterisk
+  | Slash
+  | Lt
+  | Gt
+  | MTrue
+  | MFalse
+  | If
+  | Else
+  | Return
+  | Eq
+  | NotEq
   deriving (Show, Eq, Ord)

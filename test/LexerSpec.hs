@@ -18,7 +18,10 @@ spec = do
                 \  x + y;\n\
                 \};\n\
                 \\n\
-                \let result = add(five, ten);"
+                \let result = add(five, ten);\n\
+                \!-/*5;\n\
+                \5 < 10 > 5;\n\
+                \true false if else return == !=;"
         in tokens input
           `shouldBe` [
                        token Let "let",
@@ -56,6 +59,26 @@ spec = do
                        token Comma ",",
                        token Ident "ten",
                        token RParen ")",
+                       token SemiColon ";",
+                       token Bang "!",
+                       token Minus "-",
+                       token Slash "/",
+                       token Asterisk "*",
+                       token Int "5",
+                       token SemiColon ";",
+                       token Int "5",
+                       token Lt "<",
+                       token Int "10",
+                       token Gt ">",
+                       token Int "5",
+                       token SemiColon ";",
+                       token MTrue "true",
+                       token MFalse "false",
+                       token If "if",
+                       token Else "else",
+                       token Return "return",
+                       token Eq "==",
+                       token NotEq "!=",
                        token SemiColon ";"
                      ]
 
