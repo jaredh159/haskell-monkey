@@ -1,6 +1,9 @@
 module Parser (Parser(..), parse, failure) where
 
 import Control.Applicative
+import Data.Char (isDigit)
+
+import Token
 
 newtype Parser i o = Parser (i -> Maybe (o, i))
 
@@ -38,5 +41,23 @@ instance Alternative (Parser i) where
     Nothing -> parse p2 inp
     result -> result)
 
+anyChar :: Parser String Char
+anyChar = Parser (\inp -> case inp of
+  "" -> Nothing
+  (x:xs) -> Just(x, xs))
 
+charSatisfies :: (Char -> Bool) -> Parser String Char
+charSatisfies predicate = do
+  ch <- anyChar
+  if predicate ch then return ch else failure
 
+digit :: Parser String Char
+digit = charSatisfies isDigit
+
+char :: Char -> Parser String Char
+char x = charSatisfies (== x)
+
+single :: Char -> TokenType -> Parser String Token
+single ch t = do
+  lexeme <- char ch
+  return (token t [lexeme])

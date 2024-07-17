@@ -1,4 +1,4 @@
-module Lexer (nextToken) where
+module Lexer (nextToken, tokens) where
 
 import Control.Monad.State
 import Control.Applicative
@@ -6,41 +6,53 @@ import Debug.Trace (trace)
 
 import Parser
 import Token
-import Data.Char (isDigit)
+import Data.Char (isAlpha, isDigit)
 
-anyChar :: Parser String Char
-anyChar = Parser (\inp -> case inp of
-  "" -> Nothing
-  (x:xs) -> Just(x, xs))
+nextToken :: String -> Maybe (Token, String)
+nextToken "" = Nothing
+nextToken (ch:rest)
+  | ch == '=' = Just (token Assign [ch], rest)
+  | ch == '+' = Just (token Plus [ch], rest)
+  | ch == '(' = Just (token LParen [ch], rest)
+  | ch == ')' = Just (token RParen [ch], rest)
+  | ch == '{' = Just (token LBrace [ch], rest)
+  | ch == '}' = Just (token RBrace [ch], rest)
+  | ch == ',' = Just (token Comma [ch], rest)
+  | ch == ';' = Just (token SemiColon [ch], rest)
+  | isLetter ch = Just $ ident $ word [ch] rest
+  | isDigit ch = Just $ number [ch] rest
+  | isWhitespace ch = nextToken rest
+  | otherwise = error ("Unhandled char: `" ++ [ch] ++ "`")
 
-charSatisfies :: (Char -> Bool) -> Parser String Char
-charSatisfies predicate = do
-  ch <- anyChar
-  if predicate ch then return ch else failure
+word :: String -> String -> (String, String)
+word acc "" = (reverse acc, "")
+word acc (ch:rest) = if isLetter ch
+  then word (ch:acc) rest
+  else (reverse acc, ch:rest)
 
-digit :: Parser String Char
-digit = charSatisfies isDigit
+ident :: (String, String) -> (Token, String)
+ident ("let", src) = (token Let "let", src)
+ident ("fn", src) = (token Function "fn", src)
+ident (lexeme, src) = (token Ident lexeme, src)
 
-char :: Char -> Parser String Char
-char x = charSatisfies (== x)
+number :: String -> String -> (Token, String)
+number acc "" = (token Int $ reverse acc, "")
+number acc (ch:rest) = if isDigit ch
+  then number (ch:acc) rest
+  else (token Int $ reverse acc, ch:rest)
 
-single :: Char -> TokenType -> Parser String Token
-single ch t = do
-  lexeme <- char ch
-  return (token t [lexeme])
+isLetter :: Char -> Bool
+isLetter c = isAlpha c || c == '_'
 
--- data Lexer = Lexer
---   { source :: String
---   , idx :: Int
---   } deriving (Show)
+isWhitespace :: Char -> Bool
+isWhitespace ch = ch `elem` [' ', '\t', '\n', '\r']
 
--- lexer :: String -> Lexer
--- lexer src = Lexer src 0
+tokens :: String -> [Token]
+tokens input = gather input []
 
-nextToken :: State String (Maybe Token)
--- nextToken = get >>= \lexer -> return $ token Eof ""
-nextToken = state $ \src -> parse (single '=' Assign) src
-
-add1 :: Int -> Int
-add1 x = x + 2
+gather :: String -> [Token] -> [Token]
+gather "" acc = reverse acc
+gather inp acc = case nextToken inp of
+  Just (tok, rest) -> gather rest (tok:acc)
+  Nothing -> error ("Unconsumed input: " ++ inp)
 
