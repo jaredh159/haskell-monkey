@@ -2,4 +2,5 @@ packages:
   haskell-monkey.cabal
 
 package haskell-monkey
-  ghc-options: -Werror
+  ghc-options: -fno-warn-unused-imports -fno-warn-unused-top-binds -Werror
+

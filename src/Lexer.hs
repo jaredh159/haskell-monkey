@@ -23,11 +23,9 @@ nextToken (ch:rest)
   | ch == '}' = Just (token RBrace [ch], rest)
   | ch == ',' = Just (token Comma [ch], rest)
   | ch == ';' = Just (token SemiColon [ch], rest)
-  -- | ch == '=' = Just (token Assign [ch], rest)
   | ch == '=' = case rest of
     ('=':rest') -> Just (token Eq "==", rest')
     _ -> Just (token Assign [ch], rest)
-  -- | ch == '=' = Just (token Assign [ch], rest)
   | ch == '!' = case rest of
     ('=':rest') -> Just (token NotEq "!=", rest')
     _ -> Just (token Bang [ch], rest)
