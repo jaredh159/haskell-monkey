@@ -4,7 +4,6 @@ import Control.Monad.State
 import Control.Applicative
 import Debug.Trace (trace)
 
-import Parser
 import Token
 import Data.Char (isAlpha, isDigit)
 

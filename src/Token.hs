@@ -1,12 +1,10 @@
-module Token (Token, token, TokenType(..)) where
+module Token (Token(..), token, TokenType(..)) where
 
-data Token = Token
-  { typ :: TokenType
-  , literal :: String
-  } deriving (Show, Eq)
+data Token = T TokenType String
+  deriving (Show, Eq)
 
 token :: TokenType -> String -> Token
-token t l = Token {typ=t, literal=l}
+token = T
 
 data TokenType =
     Illegal
