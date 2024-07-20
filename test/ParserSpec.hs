@@ -9,8 +9,12 @@ spec :: Spec
 spec = do
   describe "let statements" $ do
     it "should parse correct ident names" $ do
-      letStmtNames (validProgram input) `shouldBe` ["x", "y", "foobar"]
-        where input = "let x = 5; let y = 10; let foobar = 838383;"
+      let input = "let x = 5; let y = 10; let foobar = 838383;"
+      map letStmtName (validProgram input) `shouldBe` ["x", "y", "foobar"]
+
+    it "should recognize return statments" $ do
+      let input = "return 5; return 10; return 993322;"
+      all isReturnStmt (validProgram input) `shouldBe` True
 
 -- helpers
 
@@ -18,11 +22,12 @@ letStmtName :: Stmt -> String
 letStmtName (LetStmt (T _ name) _) = name
 letStmtName stmt = error "Expected `LetStmt`, got: " ++ show stmt
 
-letStmtNames :: Program -> [String]
-letStmtNames (Program stmts) = map letStmtName stmts
+isReturnStmt :: Stmt -> Bool
+isReturnStmt (ReturnStmt _) = True
+isReturnStmt _ = False
 
-validProgram :: String -> Program
+validProgram :: String -> [Stmt]
 validProgram src = case parseProgram src of
   Left err -> error ("Parser error: " ++ err)
-  Right p -> p
+  Right (Program stmts) -> stmts
 

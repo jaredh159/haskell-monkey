@@ -24,6 +24,7 @@ parseStmts ts stmts = parseStmt ts >>= f where
 parseStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
 parseStmt [] = Right (Nothing, [])
 parseStmt ((T Let _):ts) = fmap (first Just) (parseLetStmt ts)
+parseStmt ((T Return _):ts) = Right (Just (ReturnStmt Bool), skipExpr ts)
 parseStmt ts = Right (Nothing, ts)
 
 parseLetStmt :: [Token] -> Either Error (Stmt, [Token])
