@@ -9,7 +9,7 @@ newtype Program = Program [Stmt]
 --   deriving (Eq, Show)
 
 data Stmt =
-    LetStmt Token Token Expr
+    LetStmt Token Expr
   | ReturnStmt
   deriving (Eq, Show)
 
@@ -26,7 +26,7 @@ data Node =
 tokenLiteral :: Node -> String
 tokenLiteral (ProgramNode (Program [])) = ""
 tokenLiteral (ProgramNode (Program (st:_))) = tokenLiteral $ StmtNode st
-tokenLiteral (StmtNode (LetStmt (T _ literal) _ _)) = literal
+tokenLiteral (StmtNode (LetStmt (T _ literal) _)) = literal
 tokenLiteral (StmtNode ReturnStmt) = undefined
 tokenLiteral (ExprNode _) = undefined
 

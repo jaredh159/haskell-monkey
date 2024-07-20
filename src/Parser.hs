@@ -2,32 +2,37 @@ module Parser (parseProgram) where
 
 import Control.Applicative
 import Data.Char (isDigit)
+import Control.Arrow (first)
 
 import Token
 import Ast
 import Lexer
 
-parseProgram :: String -> Maybe Program
-parseProgram src = Just $ Program $ fst $ parseStmts (tokens src) []
+type Error = String
 
-parseStmts :: [Token] -> [Stmt] -> ([Stmt], [Token])
-parseStmts [] stmts = (reverse stmts, [])
-parseStmts ts stmts = case parseStmt ts of
-  (Just stmt, []) -> (reverse (stmt:stmts), [])
-  (Just stmt, remaining) -> parseStmts remaining (stmt:stmts)
-  (Nothing, remaining) -> error $ "Unconsumed tokens: " ++ show remaining
+parseProgram :: String -> Either Error Program
+parseProgram src = parseStmts (tokens src) [] >>= f where
+  f (_, unconsumed@(t:_)) = Left ("Unconsumed input: " ++ show unconsumed)
+  f (stmts, _) = Right (Program stmts)
 
+parseStmts :: [Token] -> [Stmt] -> Either Error ([Stmt], [Token])
+parseStmts [] stmts = Right (reverse stmts, [])
+parseStmts ts stmts = parseStmt ts >>= f where
+  f (Just stmt, remaining) = parseStmts remaining (stmt:stmts)
+  f (Nothing, remaining) = Right (reverse stmts, remaining)
 
-parseStmt :: [Token] -> (Maybe Stmt, [Token])
-parseStmt (t@(T Let _):ts) = parseLetStmt t ts
-parseStmt ts = (Nothing, ts)
+parseStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
+parseStmt [] = Right (Nothing, [])
+parseStmt ((T Let _):ts) = fmap (first Just) (parseLetStmt ts)
+parseStmt ts = Right (Nothing, ts)
 
-parseLetStmt :: Token -> [Token] -> (Maybe Stmt, [Token])
-parseLetStmt letToken ts@(identToken@(T Ident _):(T Assign _):rest) =
-  (Just (LetStmt letToken identToken Bool), skipExpr rest)
-parseLetStmt _ ts = (Nothing, ts)
+parseLetStmt :: [Token] -> Either Error (Stmt, [Token])
+parseLetStmt (ident@(T Ident _):(T Assign _):rest) =
+  Right (LetStmt ident Bool, skipExpr rest)
+parseLetStmt ((T kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
+parseLetStmt [] = Left "Expected T.Ident, found EOF"
 
--- temp, till we parse expresions
+-- temp, till we parse expressions
 skipExpr :: [Token] -> [Token]
 skipExpr [] = []
 skipExpr ((T SemiColon _):rest) = rest
