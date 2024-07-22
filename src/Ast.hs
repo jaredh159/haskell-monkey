@@ -8,11 +8,12 @@ newtype Program = Program [Stmt]
 data Stmt =
     LetStmt Token Expr
   | ReturnStmt Expr
+  | ExprStmt Expr
   deriving (Eq, Show)
 
 data Expr =
     Bool
-  | Int
+  | Identifier String
   deriving (Eq, Show)
 
 data Node =

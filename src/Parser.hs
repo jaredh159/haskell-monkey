@@ -9,6 +9,8 @@ import Ast
 import Lexer
 
 type Error = String
+type PrefixParseFn = [Token] -> (Maybe Expr, [Token])
+type InfixParseFn = [Token] -> Expr -> (Maybe Expr, [Token])
 
 parseProgram :: String -> Either Error Program
 parseProgram src = parseStmts (tokens src) [] >>= f where
@@ -25,13 +27,42 @@ parseStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
 parseStmt [] = Right (Nothing, [])
 parseStmt ((T Let _):ts) = fmap (first Just) (parseLetStmt ts)
 parseStmt ((T Return _):ts) = Right (Just (ReturnStmt Bool), skipExpr ts)
-parseStmt ts = Right (Nothing, ts)
+parseStmt ts = parseExprStmt ts
+
+parseExprStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
+parseExprStmt ts = fmap toStmt (parseExpr Lowest ts) where
+-- toStmt :: (Maybe Expr, [Token]) -> (Maybe Stmt, [Token])
+  toStmt (Nothing, ts) = (Nothing, ts)
+  toStmt (Just expr, (T SemiColon _):ts) = (Just (ExprStmt expr), ts)
+  toStmt (Just expr, ts) = (Just (ExprStmt expr), ts)
+
+parseExpr :: Prec -> [Token] -> Either Error (Maybe Expr, [Token])
+parseExpr prec (t:ts) = case prefixParser t of
+  Nothing -> Right (Nothing, ts)
+  Just parser -> Right (parser ts)
 
 parseLetStmt :: [Token] -> Either Error (Stmt, [Token])
 parseLetStmt (ident@(T Ident _):(T Assign _):rest) =
   Right (LetStmt ident Bool, skipExpr rest)
 parseLetStmt ((T kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
 parseLetStmt [] = Left "Expected T.Ident, found EOF"
+
+prefixParser :: Token -> Maybe PrefixParseFn
+prefixParser (T Ident name) = Just (\ts -> (Just (Identifier name), ts) )
+prefixParser t = error $ "no prefix fn found for " ++ show t
+
+infixParser :: Token -> Maybe InfixParseFn
+infixParser = undefined
+
+data Prec =
+    Lowest
+  | Equals
+  | LessGreater
+  | Sum
+  | Product
+  | Prefix
+  | Call
+  deriving (Show, Eq, Ord)
 
 -- temp, till we parse expressions
 skipExpr :: [Token] -> [Token]
