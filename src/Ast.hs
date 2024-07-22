@@ -12,7 +12,7 @@ data Stmt =
   deriving (Eq, Show)
 
 data Expr =
-    Bool
+    IntLiteral Int
   | Identifier String
   deriving (Eq, Show)
 

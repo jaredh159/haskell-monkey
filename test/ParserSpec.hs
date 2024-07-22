@@ -7,28 +7,35 @@ import Token
 
 spec :: Spec
 spec = do
-  describe "let statements" $ do
-    it "should parse correct ident names" $ do
-      let input = "let x = 5; let y = 10; let foobar = 838383;"
-      map letStmtName (validProgram input) `shouldBe` ["x", "y", "foobar"]
+  it "should parse correct ident names" $ do
+    let input = "let x = 5; let y = 10; let foobar = 838383;"
+    map letStmtName (validProgram input) `shouldBe` ["x", "y", "foobar"]
 
-    it "should recognize return statments" $ do
-      let input = "return 5; return 10; return 993322;"
-      all isReturnStmt (validProgram input) `shouldBe` True
+  it "should recognize return statments" $ do
+    let input = "return 5; return 10; return 993322;"
+    all isReturnStmt (validProgram input) `shouldBe` True
 
-    it "should parse identifier expressions" $ do
-      let input = "foo; bar; baz;"
-      fmap identExprName (validProgram input) `shouldBe` ["foo", "bar", "baz"]
+  it "should parse identifier expressions" $ do
+    let input = "foo; bar; baz"
+    fmap identExprName (validProgram input) `shouldBe` ["foo", "bar", "baz"]
+
+  it "should parse integer literal expressions" $ do
+    let input = "5; 1000; 12345"
+    fmap intLitExprVal (validProgram input) `shouldBe` [5, 1000, 12345]
 
 -- helpers
 
 letStmtName :: Stmt -> String
 letStmtName (LetStmt (T _ name) _) = name
-letStmtName stmt = error "Expected `LetStmt`, got: " ++ show stmt
+letStmtName stmt = error $ "Expected `LetStmt`, got: " ++ show stmt
 
 identExprName :: Stmt -> String
 identExprName (ExprStmt (Identifier name)) = name
-identExprName stmt = error "Expected `ExprStmt`, got: " ++ show stmt
+identExprName stmt = error $ "Expected `ExprStmt`, got: " ++ show stmt
+
+intLitExprVal :: Stmt -> Int
+intLitExprVal (ExprStmt (IntLiteral val)) = val
+intLitExprVal stmt = error $ "Expected `IntLiteral`, got: " ++ show stmt
 
 isReturnStmt :: Stmt -> Bool
 isReturnStmt (ReturnStmt _) = True

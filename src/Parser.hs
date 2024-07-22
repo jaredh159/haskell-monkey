@@ -26,12 +26,11 @@ parseStmts ts stmts = parseStmt ts >>= f where
 parseStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
 parseStmt [] = Right (Nothing, [])
 parseStmt ((T Let _):ts) = fmap (first Just) (parseLetStmt ts)
-parseStmt ((T Return _):ts) = Right (Just (ReturnStmt Bool), skipExpr ts)
+parseStmt ((T Return _):ts) = Right (Just (ReturnStmt $ IntLiteral 0), skipExpr ts)
 parseStmt ts = parseExprStmt ts
 
 parseExprStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
 parseExprStmt ts = fmap toStmt (parseExpr Lowest ts) where
--- toStmt :: (Maybe Expr, [Token]) -> (Maybe Stmt, [Token])
   toStmt (Nothing, ts) = (Nothing, ts)
   toStmt (Just expr, (T SemiColon _):ts) = (Just (ExprStmt expr), ts)
   toStmt (Just expr, ts) = (Just (ExprStmt expr), ts)
@@ -43,12 +42,13 @@ parseExpr prec (t:ts) = case prefixParser t of
 
 parseLetStmt :: [Token] -> Either Error (Stmt, [Token])
 parseLetStmt (ident@(T Ident _):(T Assign _):rest) =
-  Right (LetStmt ident Bool, skipExpr rest)
+  Right (LetStmt ident $ IntLiteral 0, skipExpr rest)
 parseLetStmt ((T kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
 parseLetStmt [] = Left "Expected T.Ident, found EOF"
 
 prefixParser :: Token -> Maybe PrefixParseFn
-prefixParser (T Ident name) = Just (\ts -> (Just (Identifier name), ts) )
+prefixParser (T Ident name) = Just (\ts -> (Just $ Identifier name, ts))
+prefixParser (T Int lxm) = Just (\ts -> (Just $ IntLiteral (read lxm), ts))
 prefixParser t = error $ "no prefix fn found for " ++ show t
 
 infixParser :: Token -> Maybe InfixParseFn
