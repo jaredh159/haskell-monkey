@@ -4,55 +4,62 @@ import Control.Applicative
 import Data.Char (isDigit)
 import Control.Arrow (first)
 
-import Token
-import Ast
-import Lexer
+import qualified Token as T
+import qualified Ast
+import qualified Lexer
 
 type Error = String
-type PrefixParseFn = [Token] -> (Maybe Expr, [Token])
-type InfixParseFn = [Token] -> Expr -> (Maybe Expr, [Token])
+type PrefixParseFn = [T.Token] -> Either Error (Maybe Ast.Expr, [T.Token])
+type InfixParseFn = [T.Token] -> Ast.Expr -> Either Error (Maybe Ast.Expr, [T.Token])
 
-parseProgram :: String -> Either Error Program
-parseProgram src = parseStmts (tokens src) [] >>= f where
+parseProgram :: String -> Either Error Ast.Program
+parseProgram src = parseStmts (Lexer.tokens src) [] >>= f where
   f (_, unconsumed@(t:_)) = Left ("Unconsumed input: " ++ show unconsumed)
-  f (stmts, _) = Right (Program stmts)
+  f (stmts, _) = Right (Ast.Program stmts)
 
-parseStmts :: [Token] -> [Stmt] -> Either Error ([Stmt], [Token])
+parseStmts :: [T.Token] -> [Ast.Stmt] -> Either Error ([Ast.Stmt], [T.Token])
 parseStmts [] stmts = Right (reverse stmts, [])
 parseStmts ts stmts = parseStmt ts >>= f where
   f (Just stmt, remaining) = parseStmts remaining (stmt:stmts)
   f (Nothing, remaining) = Right (reverse stmts, remaining)
 
-parseStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
+parseStmt :: [T.Token] -> Either Error (Maybe Ast.Stmt, [T.Token])
 parseStmt [] = Right (Nothing, [])
-parseStmt ((T Let _):ts) = fmap (first Just) (parseLetStmt ts)
-parseStmt ((T Return _):ts) = Right (Just (ReturnStmt $ IntLiteral 0), skipExpr ts)
+parseStmt ((T.T T.Let _):ts) = fmap (first Just) (parseLetStmt ts)
+parseStmt ((T.T T.Return _):ts) =
+  Right (Just (Ast.ReturnStmt $ Ast.IntLiteral 0), skipExpr ts)
 parseStmt ts = parseExprStmt ts
 
-parseExprStmt :: [Token] -> Either Error (Maybe Stmt, [Token])
+parseExprStmt :: [T.Token] -> Either Error (Maybe Ast.Stmt, [T.Token])
 parseExprStmt ts = fmap toStmt (parseExpr Lowest ts) where
   toStmt (Nothing, ts) = (Nothing, ts)
-  toStmt (Just expr, (T SemiColon _):ts) = (Just (ExprStmt expr), ts)
-  toStmt (Just expr, ts) = (Just (ExprStmt expr), ts)
+  toStmt (Just expr, (T.T T.SemiColon _):ts) = (Just (Ast.ExprStmt expr), ts)
+  toStmt (Just expr, ts) = (Just (Ast.ExprStmt expr), ts)
 
-parseExpr :: Prec -> [Token] -> Either Error (Maybe Expr, [Token])
+parseExpr :: Prec -> [T.Token] -> Either Error (Maybe Ast.Expr, [T.Token])
 parseExpr prec (t:ts) = case prefixParser t of
   Nothing -> Right (Nothing, ts)
-  Just parser -> Right (parser ts)
+  Just parse -> parse ts
 
-parseLetStmt :: [Token] -> Either Error (Stmt, [Token])
-parseLetStmt (ident@(T Ident _):(T Assign _):rest) =
-  Right (LetStmt ident $ IntLiteral 0, skipExpr rest)
-parseLetStmt ((T kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
+parseLetStmt :: [T.Token] -> Either Error (Ast.Stmt, [T.Token])
+parseLetStmt (ident@(T.T T.Ident _):(T.T T.Assign _):rest) =
+  Right (Ast.LetStmt ident $ Ast.IntLiteral 0, skipExpr rest)
+parseLetStmt ((T.T kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
 parseLetStmt [] = Left "Expected T.Ident, found EOF"
 
-prefixParser :: Token -> Maybe PrefixParseFn
-prefixParser (T Ident name) = Just (\ts -> (Just $ Identifier name, ts))
-prefixParser (T Int lxm) = Just (\ts -> (Just $ IntLiteral (read lxm), ts))
+prefixParser :: T.Token -> Maybe PrefixParseFn
+prefixParser (T.T T.Ident name) =
+  Just (\ts -> Right (Just $ Ast.Ident name, ts))
+prefixParser (T.T T.Int int) =
+  Just (\ts -> Right (Just $ Ast.IntLiteral (read int), ts))
+prefixParser (T.T T.Bang _) = Just $ parsePrefixExpr Ast.PrefixBang
+prefixParser (T.T T.Minus _) = Just $ parsePrefixExpr Ast.PrefixMinus
 prefixParser t = error $ "no prefix fn found for " ++ show t
 
-infixParser :: Token -> Maybe InfixParseFn
-infixParser = undefined
+parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> Either Error (Maybe Ast.Expr, [T.Token])
+parsePrefixExpr op ts = do
+  expr <- parseExpr Prefix ts
+  return $ first (fmap $ Ast.Prefix op) expr
 
 data Prec =
     Lowest
@@ -65,9 +72,9 @@ data Prec =
   deriving (Show, Eq, Ord)
 
 -- temp, till we parse expressions
-skipExpr :: [Token] -> [Token]
+skipExpr :: [T.Token] -> [T.Token]
 skipExpr [] = []
-skipExpr ((T SemiColon _):rest) = rest
+skipExpr ((T.T T.SemiColon _):rest) = rest
 skipExpr (_:rest) = skipExpr rest
 
 --
@@ -154,7 +161,7 @@ digit = charSatisfies isDigit
 char :: Char -> XParser String Char
 char x = charSatisfies (== x)
 
-single :: Char -> TokenType -> XParser String Token
+single :: Char -> T.TokenType -> XParser String T.Token
 single ch t = do
   lexeme <- char ch
-  return (token t [lexeme])
+  return (T.token t [lexeme])

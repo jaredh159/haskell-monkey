@@ -2,7 +2,7 @@ module ParserSpec (spec) where
 
 import Test.Hspec
 import Parser
-import Ast
+import qualified Ast
 import Token
 
 spec :: Spec
@@ -23,30 +23,38 @@ spec = do
     let input = "5; 1000; 12345"
     fmap intLitExprVal (validProgram input) `shouldBe` [5, 1000, 12345]
 
+  it "should parse prefix expressions" $ do
+    let input = "!5; -15;"
+    let expected = [(Ast.PrefixBang, 5), (Ast.PrefixMinus, 15)]
+    fmap prefixPair (validProgram input) `shouldBe` expected
+
 -- helpers
 
-letStmtName :: Stmt -> String
-letStmtName (LetStmt (T _ name) _) = name
+prefixPair :: Ast.Stmt -> (Ast.PrefixOp, Int)
+prefixPair (Ast.ExprStmt (Ast.Prefix op (Ast.IntLiteral n))) = (op, n)
+
+letStmtName :: Ast.Stmt -> String
+letStmtName (Ast.LetStmt (T _ name) _) = name
 letStmtName stmt = error $ "Expected `LetStmt`, got: " ++ show stmt
 
-identExprName :: Stmt -> String
-identExprName (ExprStmt (Identifier name)) = name
+identExprName :: Ast.Stmt -> String
+identExprName (Ast.ExprStmt (Ast.Ident name)) = name
 identExprName stmt = error $ "Expected `ExprStmt`, got: " ++ show stmt
 
-intLitExprVal :: Stmt -> Int
-intLitExprVal (ExprStmt (IntLiteral val)) = val
+intLitExprVal :: Ast.Stmt -> Int
+intLitExprVal (Ast.ExprStmt (Ast.IntLiteral val)) = val
 intLitExprVal stmt = error $ "Expected `IntLiteral`, got: " ++ show stmt
 
-isReturnStmt :: Stmt -> Bool
-isReturnStmt (ReturnStmt _) = True
+isReturnStmt :: Ast.Stmt -> Bool
+isReturnStmt (Ast.ReturnStmt _) = True
 isReturnStmt _ = False
 
-isLetStmt :: Stmt -> Bool
-isLetStmt (LetStmt _ _) = True
+isLetStmt :: Ast.Stmt -> Bool
+isLetStmt (Ast.LetStmt _ _) = True
 isLetStmt _ = False
 
-validProgram :: String -> [Stmt]
+validProgram :: String -> [Ast.Stmt]
 validProgram src = case parseProgram src of
   Left err -> error ("Parser error: " ++ err)
-  Right (Program stmts) -> stmts
+  Right (Ast.Program stmts) -> stmts
 

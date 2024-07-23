@@ -1,4 +1,9 @@
-module Ast (Expr(..), Program(..), Stmt(..)) where
+module Ast (
+    Expr(..)
+  , Program(..)
+  , Stmt(..)
+  , PrefixOp(..)
+  ) where
 
 import Token
 
@@ -11,9 +16,15 @@ data Stmt =
   | ExprStmt Expr
   deriving (Eq, Show)
 
+data PrefixOp =
+    PrefixBang
+  | PrefixMinus
+  deriving (Eq, Show)
+
 data Expr =
     IntLiteral Int
-  | Identifier String
+  | Prefix PrefixOp Expr
+  | Ident String
   deriving (Eq, Show)
 
 data Node =
