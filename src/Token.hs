@@ -1,10 +1,10 @@
 module Token (Token(..), token, TokenType(..)) where
 
-data Token = T TokenType String
+data Token = Tok TokenType String
   deriving (Show, Eq)
 
 token :: TokenType -> String -> Token
-token = T
+token = Tok
 
 data TokenType =
     Illegal

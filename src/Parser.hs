@@ -7,59 +7,94 @@ import Control.Arrow (first)
 import qualified Token as T
 import qualified Ast
 import qualified Lexer
+import Debug.Trace (trace)
 
 type Error = String
-type PrefixParseFn = [T.Token] -> Either Error (Maybe Ast.Expr, [T.Token])
-type InfixParseFn = [T.Token] -> Ast.Expr -> Either Error (Maybe Ast.Expr, [T.Token])
+type ParseResult a = Either Error (a, [T.Token])
+type PrefixParseFn = [T.Token] -> ParseResult (Maybe Ast.Expr)
+type InfixParseFn = [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
 
 parseProgram :: String -> Either Error Ast.Program
 parseProgram src = parseStmts (Lexer.tokens src) [] >>= f where
   f (_, unconsumed@(t:_)) = Left ("Unconsumed input: " ++ show unconsumed)
   f (stmts, _) = Right (Ast.Program stmts)
 
-parseStmts :: [T.Token] -> [Ast.Stmt] -> Either Error ([Ast.Stmt], [T.Token])
+parseStmts :: [T.Token] -> [Ast.Stmt] -> ParseResult [Ast.Stmt]
 parseStmts [] stmts = Right (reverse stmts, [])
 parseStmts ts stmts = parseStmt ts >>= f where
   f (Just stmt, remaining) = parseStmts remaining (stmt:stmts)
   f (Nothing, remaining) = Right (reverse stmts, remaining)
 
-parseStmt :: [T.Token] -> Either Error (Maybe Ast.Stmt, [T.Token])
+parseStmt :: [T.Token] -> ParseResult (Maybe Ast.Stmt)
 parseStmt [] = Right (Nothing, [])
-parseStmt ((T.T T.Let _):ts) = fmap (first Just) (parseLetStmt ts)
-parseStmt ((T.T T.Return _):ts) =
+parseStmt ((T.Tok T.Let _):ts) = fmap (first Just) (parseLetStmt ts)
+parseStmt ((T.Tok T.Return _):ts) =
   Right (Just (Ast.ReturnStmt $ Ast.IntLiteral 0), skipExpr ts)
 parseStmt ts = parseExprStmt ts
 
-parseExprStmt :: [T.Token] -> Either Error (Maybe Ast.Stmt, [T.Token])
+parseExprStmt :: [T.Token] -> ParseResult (Maybe Ast.Stmt)
 parseExprStmt ts = fmap toStmt (parseExpr Lowest ts) where
   toStmt (Nothing, ts) = (Nothing, ts)
-  toStmt (Just expr, (T.T T.SemiColon _):ts) = (Just (Ast.ExprStmt expr), ts)
+  toStmt (Just expr, (T.Tok T.SemiColon _):ts) = (Just (Ast.ExprStmt expr), ts)
   toStmt (Just expr, ts) = (Just (Ast.ExprStmt expr), ts)
 
-parseExpr :: Prec -> [T.Token] -> Either Error (Maybe Ast.Expr, [T.Token])
+parseExpr :: Prec -> [T.Token] -> ParseResult (Maybe Ast.Expr)
 parseExpr prec (t:ts) = case prefixParser t of
-  Nothing -> Right (Nothing, ts)
-  Just parse -> parse ts
+  Nothing -> Left ("No prefix parser found for " ++ show t)
+  Just parsePrefix -> parsePrefix ts >>= descend prec
 
-parseLetStmt :: [T.Token] -> Either Error (Ast.Stmt, [T.Token])
-parseLetStmt (ident@(T.T T.Ident _):(T.T T.Assign _):rest) =
+descend :: Prec -> (Maybe Ast.Expr, [T.Token]) -> ParseResult (Maybe Ast.Expr)
+descend curprec (Just expr, ts@(peek:_))
+  | curprec < precedence peek = case infixParser peek of
+    Nothing -> Right (Just expr, ts)
+    Just parseInfix -> parseInfix ts expr >>= descend curprec
+  | otherwise = Right (Just expr, ts)
+descend _ result = Right result
+
+parseLetStmt :: [T.Token] -> ParseResult Ast.Stmt
+parseLetStmt (ident@(T.Tok T.Ident _):(T.Tok T.Assign _):rest) =
   Right (Ast.LetStmt ident $ Ast.IntLiteral 0, skipExpr rest)
-parseLetStmt ((T.T kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
+parseLetStmt ((T.Tok kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
 parseLetStmt [] = Left "Expected T.Ident, found EOF"
 
 prefixParser :: T.Token -> Maybe PrefixParseFn
-prefixParser (T.T T.Ident name) =
-  Just (\ts -> Right (Just $ Ast.Ident name, ts))
-prefixParser (T.T T.Int int) =
-  Just (\ts -> Right (Just $ Ast.IntLiteral (read int), ts))
-prefixParser (T.T T.Bang _) = Just $ parsePrefixExpr Ast.PrefixBang
-prefixParser (T.T T.Minus _) = Just $ parsePrefixExpr Ast.PrefixMinus
-prefixParser t = error $ "no prefix fn found for " ++ show t
+prefixParser (T.Tok T.Ident name) = Just (\ts -> Right (Just $ Ast.Ident name, ts))
+prefixParser (T.Tok T.Int int) = Just (\ts -> Right (Just $ Ast.IntLiteral (read int), ts))
+prefixParser (T.Tok T.Bang _) = Just (parsePrefixExpr Ast.PrefixBang)
+prefixParser (T.Tok T.Minus _) = Just (parsePrefixExpr Ast.PrefixMinus)
+prefixParser _ = Nothing
 
-parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> Either Error (Maybe Ast.Expr, [T.Token])
+infixParser :: T.Token -> Maybe InfixParseFn
+infixParser (T.Tok T.Plus _) = Just (parseInfixExpr Ast.InfixPlus)
+infixParser (T.Tok T.Minus _) = Just (parseInfixExpr Ast.InfixMinus)
+infixParser (T.Tok T.Slash _) = Just (parseInfixExpr Ast.InfixSlash)
+infixParser (T.Tok T.Lt _) = Just (parseInfixExpr Ast.InfixLt)
+infixParser (T.Tok T.Gt _) = Just (parseInfixExpr Ast.InfixGt)
+infixParser (T.Tok T.Eq _) = Just (parseInfixExpr Ast.InfixEq)
+infixParser (T.Tok T.NotEq _) = Just (parseInfixExpr Ast.InfixNotEq)
+infixParser (T.Tok T.Asterisk _) = Just (parseInfixExpr Ast.InfixAsterisk)
+infixParser _ = Nothing
+
+parseInfixExpr :: Ast.InfixOp -> [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
+parseInfixExpr op (t:ts) lhs = do
+  result <- parseExpr (precedence t) ts
+  return $ first (fmap $ Ast.Infix lhs op) result
+
+parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> ParseResult (Maybe Ast.Expr)
 parsePrefixExpr op ts = do
-  expr <- parseExpr Prefix ts
-  return $ first (fmap $ Ast.Prefix op) expr
+  result <- parseExpr Prefix ts
+  return $ first (fmap $ Ast.Prefix op) result
+
+precedence :: T.Token -> Prec
+precedence (T.Tok T.Eq _) = Equals
+precedence (T.Tok T.NotEq _) = Equals
+precedence (T.Tok T.Lt _) = LessGreater
+precedence (T.Tok T.Gt _) = LessGreater
+precedence (T.Tok T.Plus _) = Sum
+precedence (T.Tok T.Minus _) = Sum
+precedence (T.Tok T.Slash _) = Product
+precedence (T.Tok T.Asterisk _) = Product
+precedence _ = Lowest
 
 data Prec =
     Lowest
@@ -74,7 +109,7 @@ data Prec =
 -- temp, till we parse expressions
 skipExpr :: [T.Token] -> [T.Token]
 skipExpr [] = []
-skipExpr ((T.T T.SemiColon _):rest) = rest
+skipExpr ((T.Tok T.SemiColon _):rest) = rest
 skipExpr (_:rest) = skipExpr rest
 
 --
