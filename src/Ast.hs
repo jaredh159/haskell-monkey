@@ -4,7 +4,7 @@ module Ast (
   , Stmt(..)
   , PrefixOp(..)
   , InfixOp(..)
-  , Node(stringify)
+  , Node(..)
   ) where
 
 import Token as T
@@ -35,7 +35,8 @@ data PrefixOp =
   deriving (Eq, Show)
 
 data Expr =
-    IntLiteral Int
+    BoolLit Bool
+  | IntLit Int
   | Prefix PrefixOp Expr
   | Infix Expr InfixOp Expr
   | Ident String
@@ -45,9 +46,9 @@ data Expr =
 
 class Node a where
   stringify :: a -> String
-  -- private
-  s :: a -> String
-  s = stringify
+
+s :: (Node a) => a -> String
+s = stringify
 
 instance Node Program where
   stringify (Program stmts) = concatMap s stmts
@@ -61,7 +62,8 @@ instance Node Expr where
   stringify (Prefix op expr) = "(" ++ lexeme op ++ s expr ++ ")"
   stringify (Infix lhs op rhs) = "(" ++ s lhs ++ " " ++ lexeme op ++ " " ++ s rhs ++ ")"
   stringify (Ast.Ident name) = name
-  stringify (IntLiteral i) = show i
+  stringify (IntLit i) = show i
+  stringify (BoolLit b) = if b then "true" else "false"
 
 -- helpers
 

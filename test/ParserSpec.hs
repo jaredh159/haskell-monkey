@@ -17,28 +17,51 @@ spec = do
     all isReturnStmt (stmts input) `shouldBe` True
 
   it "should parse identifier expressions" $ do
-    let input = "foo; bar; baz"
-    fmap identExprName (stmts input) `shouldBe` ["foo", "bar", "baz"]
+    let tolit (Ast.ExprStmt ident) = lit ident
+    fmap tolit (stmts "foo; bar") `shouldBe` [LitIdent "foo", LitIdent "bar"]
 
-  it "should parse integer literal expressions" $ do
-    let input = "5; 1000; 12345"
-    fmap intLitExprVal (stmts input) `shouldBe` [5, 1000, 12345]
+  it "should parse boolean literal expressions" $ do
+    let input = "true; false;"
+    let boolVal (Ast.ExprStmt (Ast.BoolLit val)) = val
+    fmap boolVal (stmts input) `shouldBe` [True, False]
 
   it "should parse prefix expressions" $ do
-    let input = "!5; -15;"
-    let expected = [(Ast.PrefixBang, 5), (Ast.PrefixMinus, 15)]
-    fmap prefixPair (stmts input) `shouldBe` expected
+    let pair (Ast.ExprStmt (Ast.Prefix op expr)) = (op, lit expr)
+    let cases =
+          [ ("!5;", (Ast.PrefixBang, LitInt 5))
+          , ("-15;", (Ast.PrefixMinus, LitInt 15))
+          , ("!true;", (Ast.PrefixBang, LitBool True))
+          , ("!false;", (Ast.PrefixBang, LitBool False))
+          ]
+    map ((pair . stmt) . fst) cases `shouldBe` map snd cases
 
   it "should parse infix expressions" $ do
-    let input = "5 + 5; 5 - 5; 5 / 5; 5 > 5; 5 < 5; 5 == 5; 5 != 5"
-    let expected = [Ast.InfixPlus, Ast.InfixMinus, Ast.InfixSlash,
-                    Ast.InfixGt, Ast.InfixLt, Ast.InfixEq, Ast.InfixNotEq]
-    fmap infixTriple (stmts input) `shouldBe` map (\i -> (5, i, 5)) expected
+    let triple (Ast.ExprStmt (Ast.Infix lhs op rhs)) = (lit lhs, op, lit rhs)
+    let cases =
+          [ ("5 + 5", (LitInt 5, Ast.InfixPlus, LitInt 5))
+          , ("5 - 5", (LitInt 5, Ast.InfixMinus, LitInt 5))
+          , ("5 / 5", (LitInt 5, Ast.InfixSlash, LitInt 5))
+          , ("5 > 5", (LitInt 5, Ast.InfixGt, LitInt 5))
+          , ("5 < 5", (LitInt 5, Ast.InfixLt, LitInt 5))
+          , ("5 == 5", (LitInt 5, Ast.InfixEq, LitInt 5))
+          , ("5 != 5", (LitInt 5, Ast.InfixNotEq, LitInt 5))
+          , ("true == true", (LitBool True, Ast.InfixEq, LitBool True))
+          , ("true != false", (LitBool True, Ast.InfixNotEq, LitBool False))
+          ]
+    map ((triple . stmt) . fst) cases `shouldBe` map snd cases
+
 
   it "should handle precedence correctly" $ do
     let cases =
          [ ("-a * b", "((-a) * b)")
          , ("!-a", "(!(-a))")
+         , ("true", "true")
+         , ("3 > 5 == false", "((3 > 5) == false)")
+         , ("1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)")
+         , ("(5 + 5) * 2", "((5 + 5) * 2)")
+         , ("2 / (5 + 5)", "(2 / (5 + 5))")
+         , ("-(5 + 5)", "(-(5 + 5))")
+         , ("!(true == true)", "(!(true == true))")
          , ("a + b + c", "((a + b) + c)")
          , ("a + b - c", "((a + b) - c)")
          , ("a * b * c", "((a * b) * c)")
@@ -54,25 +77,17 @@ spec = do
 
 -- helpers
 
-infixTriple :: Ast.Stmt -> (Int, Ast.InfixOp, Int)
-infixTriple (Ast.ExprStmt (Ast.Infix (Ast.IntLiteral l) op (Ast.IntLiteral r)))
-  = (l, op, r)
-infixTriple stmt = error ("Unexpected stmt: " ++ show stmt)
+data Lit = LitInt Int | LitIdent String | LitBool Bool deriving (Show, Eq)
 
-prefixPair :: Ast.Stmt -> (Ast.PrefixOp, Int)
-prefixPair (Ast.ExprStmt (Ast.Prefix op (Ast.IntLiteral n))) = (op, n)
+lit :: Ast.Expr -> Lit
+lit (Ast.IntLit i) = LitInt i
+lit (Ast.Ident i) = LitIdent i
+lit (Ast.BoolLit b) = LitBool b
+lit exp = error $ "Unexpected not literal: " ++ show exp
 
 letStmtName :: Ast.Stmt -> String
 letStmtName (Ast.LetStmt (Tok _ name) _) = name
 letStmtName stmt = error $ "Expected `LetStmt`, got: " ++ show stmt
-
-identExprName :: Ast.Stmt -> String
-identExprName (Ast.ExprStmt (Ast.Ident name)) = name
-identExprName stmt = error $ "Expected `ExprStmt`, got: " ++ show stmt
-
-intLitExprVal :: Ast.Stmt -> Int
-intLitExprVal (Ast.ExprStmt (Ast.IntLiteral val)) = val
-intLitExprVal stmt = error $ "Expected `IntLiteral`, got: " ++ show stmt
 
 isReturnStmt :: Ast.Stmt -> Bool
 isReturnStmt (Ast.ReturnStmt _) = True
@@ -89,5 +104,10 @@ program src = case parseProgram src of
 
 stmts :: String -> [Ast.Stmt]
 stmts src = case program src of (Ast.Program xs) -> xs
+
+stmt :: String -> Ast.Stmt
+stmt src = case stmts src of
+  [s] -> s
+  stms -> error $ "Expected 1 Ast.Stmt, got: " ++ show (length stms)
 
 
