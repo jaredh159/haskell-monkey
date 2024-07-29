@@ -5,6 +5,7 @@ import Control.Arrow (first)
 import qualified Token as T
 import qualified Ast
 import qualified Lexer
+import Debug.Trace (trace)
 
 type Error = String
 type ParseResult a = Either Error (a, [T.Token])
@@ -78,12 +79,31 @@ prefixParser (T.Tok T.Bang _) = Just (parsePrefixExpr Ast.PrefixBang)
 prefixParser (T.Tok T.Minus _) = Just (parsePrefixExpr Ast.PrefixMinus)
 prefixParser (T.Tok T.LParen _) = Just parseGroupedExpr
 prefixParser (T.Tok T.If _) = Just parseIfExpr
+prefixParser (T.Tok T.Function _) = Just parseFunction
 prefixParser _ = Nothing
 
 parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> ParseResult (Maybe Ast.Expr)
 parsePrefixExpr op ts = do
   result <- parseExpr Prefix ts
   return $ first (fmap $ Ast.Prefix op) result
+
+parseFunction :: PrefixParseFn
+parseFunction ((T.Tok T.LParen _):ts) = do
+  (params, ts') <- parseFnParams [] ts
+  case ts' of
+    (T.Tok T.LBrace _):ts'' -> do
+      (body, ts''') <- parseBlockStmt [] ts''
+      Right (Just (Ast.FnLit params body), ts''')
+    (t:_) -> Left $ "Expected Tok.LBrace, got: " ++ show t
+    [] -> Left "Expected Tok.LBrace, got EOF"
+parseFunction ts = error $ "??? " ++ show ts
+
+parseFnParams :: [String] -> [T.Token] -> ParseResult [String]
+parseFnParams params ((T.Tok T.RParen _):ts) = Right (params, ts)
+parseFnParams params ((T.Tok T.Comma _):(T.Tok T.Ident ident):ts) = parseFnParams (params ++ [ident]) ts
+parseFnParams params ((T.Tok T.Ident ident):ts) = parseFnParams (params ++ [ident]) ts
+parseFnParams _ (t:_) = Left $ "Expected Tok.RParen or Tok.Ident, got: " ++ show t
+parseFnParams _ [] = Left "Expected Tok.RParen or Tok.Ident, got EOF"
 
 parseIfExpr :: PrefixParseFn
 parseIfExpr ((T.Tok T.LParen _):ts) = do
@@ -98,7 +118,8 @@ parseIfExpr ((T.Tok T.LParen _):ts) = do
         _ -> Right (Just (Ast.If cond conseq Nothing), ts'')
     (Just _, t:_) -> error $ "Expected Tok.RParen, got: " ++ show t
     (Just _, []) -> error "Expected Tok.RParen, got EOF"
-parseIfExpr ts = error $ show ts
+parseIfExpr (t:_) = error $ "Expected Tok.LParen, got: " ++ show t
+parseIfExpr [] = error "Expected Tok.LParen, got EOF"
 
 parseGroupedExpr :: PrefixParseFn
 parseGroupedExpr ts = do

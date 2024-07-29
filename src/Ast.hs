@@ -8,6 +8,7 @@ module Ast (
   ) where
 
 import Token as T
+import Data.List (intercalate)
 
 newtype Program = Program [Stmt]
   deriving (Eq, Show)
@@ -40,6 +41,7 @@ data Expr =
   | Prefix PrefixOp Expr
   | Infix Expr InfixOp Expr
   | Ident String
+  | FnLit [String] [Stmt]
   | If { cond :: Expr, conseq :: [Stmt], alt :: Maybe [Stmt] }
   deriving (Eq, Show)
 
@@ -68,6 +70,7 @@ instance Node Expr where
   stringify (Ast.If cond cons alt) = "if " ++ s cond ++ " " ++ s cons ++ (case alt of
     Nothing -> ""
     Just alt' -> "else " ++ s alt')
+  stringify (FnLit params body) = "fn(" ++ intercalate ", " params ++ ")" ++ s body
 
 s :: (Node a) => a -> String
 s = stringify

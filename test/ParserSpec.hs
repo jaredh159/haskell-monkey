@@ -98,6 +98,22 @@ spec = do
         return ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
 
+  it "should parse function literals" $ do
+    case singleExpr "fn(x, y) { x + y; }" of
+      (Ast.FnLit ["x", "y"] [Ast.ExprStmt expr]) -> do
+        assertInfix expr (LitIdent "x", Ast.InfixPlus, LitIdent "y")
+        return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+    case singleExpr "fn() {}" of
+      (Ast.FnLit [] []) -> do return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+    case singleExpr "fn(x) {}" of
+      (Ast.FnLit ["x"] []) -> do return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+    case singleExpr "fn(x, y, z, a) {}" of
+      (Ast.FnLit ["x", "y", "z", "a"] []) -> do return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+
 -- helpers
 
 assertInfix :: Ast.Expr -> (Lit, Ast.InfixOp, Lit) -> IO ()
