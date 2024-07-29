@@ -40,6 +40,7 @@ data Expr =
   | Prefix PrefixOp Expr
   | Infix Expr InfixOp Expr
   | Ident String
+  | If { cond :: Expr, conseq :: [Stmt], alt :: Maybe [Stmt] }
   deriving (Eq, Show)
 
 -- Node
@@ -47,11 +48,11 @@ data Expr =
 class Node a where
   stringify :: a -> String
 
-s :: (Node a) => a -> String
-s = stringify
-
 instance Node Program where
-  stringify (Program stmts) = concatMap s stmts
+  stringify (Program stmts) = stringify stmts
+
+instance (Node a) => Node [a] where
+  stringify = concatMap stringify
 
 instance Node Stmt where
   stringify (LetStmt (Tok _ t) expr) = "let " ++ t ++ " = " ++ s expr
@@ -64,6 +65,12 @@ instance Node Expr where
   stringify (Ast.Ident name) = name
   stringify (IntLit i) = show i
   stringify (BoolLit b) = if b then "true" else "false"
+  stringify (Ast.If cond cons alt) = "if " ++ s cond ++ " " ++ s cons ++ (case alt of
+    Nothing -> ""
+    Just alt' -> "else " ++ s alt')
+
+s :: (Node a) => a -> String
+s = stringify
 
 -- helpers
 

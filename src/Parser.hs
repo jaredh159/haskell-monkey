@@ -43,6 +43,15 @@ parseExprStmt ts = fmap toStmt (parseExpr Lowest ts) where
   toStmt (Just expr, (T.Tok T.SemiColon _):ts) = (Just (Ast.ExprStmt expr), ts)
   toStmt (Just expr, ts) = (Just (Ast.ExprStmt expr), ts)
 
+parseBlockStmt :: [Ast.Stmt] -> [T.Token] -> ParseResult [Ast.Stmt]
+parseBlockStmt stmts [] = Right (stmts, [])
+parseBlockStmt stmts ((T.Tok T.RBrace _):ts) = Right (stmts, ts)
+parseBlockStmt stmts ts = do
+  result <- parseStmt ts
+  case result of
+    (Just stmt, ts') -> parseBlockStmt (stmts ++ [stmt]) ts'
+    (Nothing, ts') -> parseBlockStmt stmts ts'
+
 -- expressions
 
 parseExpr :: Prec -> [T.Token] -> ParseResult (Maybe Ast.Expr)
@@ -68,12 +77,28 @@ prefixParser (T.Tok T.MFalse val) = Just (\ts -> Right (Just $ Ast.BoolLit False
 prefixParser (T.Tok T.Bang _) = Just (parsePrefixExpr Ast.PrefixBang)
 prefixParser (T.Tok T.Minus _) = Just (parsePrefixExpr Ast.PrefixMinus)
 prefixParser (T.Tok T.LParen _) = Just parseGroupedExpr
+prefixParser (T.Tok T.If _) = Just parseIfExpr
 prefixParser _ = Nothing
 
 parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> ParseResult (Maybe Ast.Expr)
 parsePrefixExpr op ts = do
   result <- parseExpr Prefix ts
   return $ first (fmap $ Ast.Prefix op) result
+
+parseIfExpr :: PrefixParseFn
+parseIfExpr ((T.Tok T.LParen _):ts) = do
+  condResult <- parseExpr Lowest ts
+  case condResult of
+    (Just cond, (T.Tok T.RParen _):(T.Tok T.LBrace _):ts') -> do
+      (conseq, ts'') <- parseBlockStmt [] ts'
+      case ts'' of
+        ((T.Tok T.Else _):(T.Tok T.LBrace _):ts''') -> do
+          (alt, ts'''') <- parseBlockStmt [] ts'''
+          Right (Just (Ast.If cond conseq (Just alt)), ts'''')
+        _ -> Right (Just (Ast.If cond conseq Nothing), ts'')
+    (Just _, t:_) -> error $ "Expected Tok.RParen, got: " ++ show t
+    (Just _, []) -> error "Expected Tok.RParen, got EOF"
+parseIfExpr ts = error $ show ts
 
 parseGroupedExpr :: PrefixParseFn
 parseGroupedExpr ts = do

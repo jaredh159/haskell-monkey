@@ -36,7 +36,7 @@ spec = do
     map ((pair . stmt) . fst) cases `shouldBe` map snd cases
 
   it "should parse infix expressions" $ do
-    let triple (Ast.ExprStmt (Ast.Infix lhs op rhs)) = (lit lhs, op, lit rhs)
+    let triple (Ast.Infix lhs op rhs) = (lit lhs, op, lit rhs)
     let cases =
           [ ("5 + 5", (LitInt 5, Ast.InfixPlus, LitInt 5))
           , ("5 - 5", (LitInt 5, Ast.InfixMinus, LitInt 5))
@@ -48,7 +48,7 @@ spec = do
           , ("true == true", (LitBool True, Ast.InfixEq, LitBool True))
           , ("true != false", (LitBool True, Ast.InfixNotEq, LitBool False))
           ]
-    map ((triple . stmt) . fst) cases `shouldBe` map snd cases
+    map ((triple . singleExpr) . fst) cases `shouldBe` map snd cases
 
 
   it "should handle precedence correctly" $ do
@@ -75,7 +75,37 @@ spec = do
          ]
     map ((Ast.stringify . program) . fst) cases `shouldBe` map snd cases
 
+  it "should parse if expressions" $ do
+    case singleExpr "if (x < y) { x }" of
+      (Ast.If cond [cons] Nothing) -> do
+        assertInfix cond (LitIdent "x", Ast.InfixLt, LitIdent "y")
+        case cons of
+          (Ast.ExprStmt (Ast.Ident "x")) -> return ()
+          s -> expectationFailure $ "Unexpected cons stmt: " ++ show s
+        return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+
+  it "should parse if/else expressions" $ do
+    case singleExpr "if (x < y) { x } else { y }" of
+      (Ast.If cond [cons] (Just [alt])) -> do
+        assertInfix cond (LitIdent "x", Ast.InfixLt, LitIdent "y")
+        case cons of
+          (Ast.ExprStmt (Ast.Ident "x")) -> return ()
+          s -> expectationFailure $ "Unexpected cons stmt: " ++ show s
+        case alt of
+          (Ast.ExprStmt (Ast.Ident "y")) -> return ()
+          s -> expectationFailure $ "Unexpected alt stmt: " ++ show s
+        return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+
 -- helpers
+
+assertInfix :: Ast.Expr -> (Lit, Ast.InfixOp, Lit) -> IO ()
+assertInfix ifx@(Ast.Infix lhs op rhs) (el, eop, er)
+  = if (lit lhs == el) && (op == eop) && (lit rhs == er)
+    then return ()
+    else expectationFailure $ "Infix expr did not match expectation: " ++ show ifx
+assertInfix expr _ = expectationFailure $ "Expected infix, got: " ++ show expr
 
 data Lit = LitInt Int | LitIdent String | LitBool Bool deriving (Show, Eq)
 
@@ -105,9 +135,13 @@ program src = case parseProgram src of
 stmts :: String -> [Ast.Stmt]
 stmts src = case program src of (Ast.Program xs) -> xs
 
+singleExpr :: String -> Ast.Expr
+singleExpr src = case stmt src of
+  (Ast.ExprStmt expr) -> expr
+  stmt -> error $ "Expected Ast.ExprStmt, got: " ++ show stmt
+
 stmt :: String -> Ast.Stmt
 stmt src = case stmts src of
   [s] -> s
   stms -> error $ "Expected 1 Ast.Stmt, got: " ++ show (length stms)
-
 
