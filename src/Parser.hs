@@ -8,7 +8,8 @@ import qualified Lexer
 import Debug.Trace (trace)
 
 type Error = String
-type ParseResult a = Either Error (a, [T.Token])
+type Result a = (a, [T.Token])
+type ParseResult a = Either Error (Result a)
 type PrefixParseFn = [T.Token] -> ParseResult (Maybe Ast.Expr)
 type InfixParseFn = [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
 
@@ -27,22 +28,24 @@ parseStmts ts stmts = parseStmt ts >>= f where
 
 parseStmt :: [T.Token] -> ParseResult (Maybe Ast.Stmt)
 parseStmt [] = Right (Nothing, [])
-parseStmt ((T.Tok T.Let _):ts) = fmap (first Just) (parseLetStmt ts)
+parseStmt ((T.Tok T.Let _):ts) = parseLetStmt ts
 parseStmt ((T.Tok T.Return _):ts) =
-  Right (Just (Ast.ReturnStmt $ Ast.IntLit 0), skipExpr ts)
+  fmap (wrap Ast.ReturnStmt) (parseExpr Lowest ts)
 parseStmt ts = parseExprStmt ts
 
-parseLetStmt :: [T.Token] -> ParseResult Ast.Stmt
-parseLetStmt (ident@(T.Tok T.Ident _):(T.Tok T.Assign _):rest) =
-  Right (Ast.LetStmt ident $ Ast.IntLit 0, skipExpr rest)
+parseLetStmt :: [T.Token] -> ParseResult (Maybe Ast.Stmt)
+parseLetStmt ((T.Tok T.Ident ident):(T.Tok T.Assign _):ts) =
+  fmap (wrap $ Ast.LetStmt ident) (parseExpr Lowest ts)
 parseLetStmt ((T.Tok kind _):_) = Left ("Expected T.Ident, found " ++ show kind)
 parseLetStmt [] = Left "Expected T.Ident, found EOF"
 
 parseExprStmt :: [T.Token] -> ParseResult (Maybe Ast.Stmt)
-parseExprStmt ts = fmap toStmt (parseExpr Lowest ts) where
-  toStmt (Nothing, ts) = (Nothing, ts)
-  toStmt (Just expr, (T.Tok T.SemiColon _):ts) = (Just (Ast.ExprStmt expr), ts)
-  toStmt (Just expr, ts) = (Just (Ast.ExprStmt expr), ts)
+parseExprStmt ts = fmap (wrap Ast.ExprStmt) (parseExpr Lowest ts)
+
+wrap :: (Ast.Expr -> Ast.Stmt) -> Result (Maybe Ast.Expr) -> Result (Maybe Ast.Stmt)
+wrap _ (Nothing, ts) = (Nothing, ts)
+wrap f (Just expr, (T.Tok T.SemiColon _):ts) = (Just (f expr), ts)
+wrap f (Just expr, ts) = (Just (f expr), ts)
 
 parseBlockStmt :: [Ast.Stmt] -> [T.Token] -> ParseResult [Ast.Stmt]
 parseBlockStmt stmts [] = Right (stmts, [])
@@ -188,10 +191,4 @@ data Prec =
   | Prefix
   | Call
   deriving (Show, Eq, Ord)
-
--- temp, till we parse expressions
-skipExpr :: [T.Token] -> [T.Token]
-skipExpr [] = []
-skipExpr ((T.Tok T.SemiColon _):rest) = rest
-skipExpr (_:rest) = skipExpr rest
 

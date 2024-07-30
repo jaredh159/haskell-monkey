@@ -14,7 +14,7 @@ newtype Program = Program [Stmt]
   deriving (Eq, Show)
 
 data Stmt =
-    LetStmt Token Expr
+    LetStmt String Expr
   | ReturnStmt Expr
   | ExprStmt Expr
   deriving (Eq, Show)
@@ -58,7 +58,7 @@ instance (Node a) => Node [a] where
   stringify = concatMap stringify
 
 instance Node Stmt where
-  stringify (LetStmt (Tok _ t) expr) = "let " ++ t ++ " = " ++ s expr
+  stringify (LetStmt ident expr) = "let " ++ ident ++ " = " ++ s expr
   stringify (ReturnStmt expr) = "return " ++ s expr
   stringify (ExprStmt expr) = s expr
 

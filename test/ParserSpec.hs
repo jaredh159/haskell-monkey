@@ -9,12 +9,22 @@ import Data.Either (fromRight)
 spec :: Spec
 spec = do
   it "should parse correct ident names" $ do
-    let input = "let x = 5; let y = 10; let foobar = 838383;"
-    map letStmtName (stmts input) `shouldBe` ["x", "y", "foobar"]
+    let pair (Ast.LetStmt ident expr) = (ident, lit expr)
+    let cases =
+          [ ("let x = 5;", ("x", LitInt 5))
+          , ("let y = true", ("y", LitBool True))
+          , ("let foobar = y;", ("foobar", LitIdent "y"))
+          ]
+    map ((pair . stmt) . fst) cases `shouldBe` map snd cases
 
   it "should recognize return statments" $ do
-    let input = "return 5; return 10; return 993322;"
-    all isReturnStmt (stmts input) `shouldBe` True
+    let pair (Ast.ReturnStmt expr) = lit expr
+    let cases =
+          [ ("return 5;",  LitInt 5)
+          , ("return true", LitBool True)
+          , ("return foobar;", LitIdent "foobar")
+          ]
+    map ((pair . stmt) . fst) cases `shouldBe` map snd cases
 
   it "should parse identifier expressions" $ do
     let tolit (Ast.ExprStmt ident) = lit ident
@@ -143,18 +153,6 @@ lit (Ast.IntLit i) = LitInt i
 lit (Ast.Ident i) = LitIdent i
 lit (Ast.BoolLit b) = LitBool b
 lit exp = error $ "Unexpected not literal: " ++ show exp
-
-letStmtName :: Ast.Stmt -> String
-letStmtName (Ast.LetStmt (Tok _ name) _) = name
-letStmtName stmt = error $ "Expected `LetStmt`, got: " ++ show stmt
-
-isReturnStmt :: Ast.Stmt -> Bool
-isReturnStmt (Ast.ReturnStmt _) = True
-isReturnStmt _ = False
-
-isLetStmt :: Ast.Stmt -> Bool
-isLetStmt (Ast.LetStmt _ _) = True
-isLetStmt _ = False
 
 program :: String -> Ast.Program
 program src = case parseProgram src of
