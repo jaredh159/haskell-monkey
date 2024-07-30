@@ -42,6 +42,7 @@ data Expr =
   | Infix Expr InfixOp Expr
   | Ident String
   | FnLit [String] [Stmt]
+  | Call Expr [Expr]
   | If { cond :: Expr, conseq :: [Stmt], alt :: Maybe [Stmt] }
   deriving (Eq, Show)
 
@@ -67,10 +68,11 @@ instance Node Expr where
   stringify (Ast.Ident name) = name
   stringify (IntLit i) = show i
   stringify (BoolLit b) = if b then "true" else "false"
+  stringify (FnLit params body) = "fn(" ++ intercalate ", " params ++ ")" ++ s body
+  stringify (Call fn args) = s fn ++ "(" ++ intercalate ", " (map s args) ++ ")"
   stringify (Ast.If cond cons alt) = "if " ++ s cond ++ " " ++ s cons ++ (case alt of
     Nothing -> ""
     Just alt' -> "else " ++ s alt')
-  stringify (FnLit params body) = "fn(" ++ intercalate ", " params ++ ")" ++ s body
 
 s :: (Node a) => a -> String
 s = stringify

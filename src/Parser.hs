@@ -132,10 +132,26 @@ parseGroupedExpr ts = do
 
 -- infix expressons
 
-parseInfixExpr :: Ast.InfixOp -> [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
+parseInfixExpr :: Ast.InfixOp -> InfixParseFn
 parseInfixExpr op (t:ts) lhs = do
   result <- parseExpr (precedence t) ts
   return $ first (fmap $ Ast.Infix lhs op) result
+
+parseCallExpr ::  [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
+parseCallExpr ((T.Tok T.LParen _):ts) fn = do
+  (args, ts') <- parseCallArgs [] ts
+  Right (Just (Ast.Call fn args), ts')
+
+parseCallArgs :: [Ast.Expr] -> [T.Token] -> ParseResult [Ast.Expr]
+parseCallArgs args ((T.Tok T.RParen _):ts) = Right (args, ts)
+parseCallArgs args ((T.Tok T.Comma _):(T.Tok T.RParen _):_) =
+  Left "Unexpected trailing comma in argument list"
+parseCallArgs args ((T.Tok T.Comma _):ts) = parseCallArgs args ts
+parseCallArgs args ts@(_:_) = do
+  argResult <- parseExpr Lowest ts
+  case argResult of
+    (Just arg, ts') -> parseCallArgs (args ++ [arg]) ts'
+parseCallArgs _ [] = Left "Unexpected EOF parsing argument list"
 
 infixParser :: T.Token -> Maybe InfixParseFn
 infixParser (T.Tok T.Plus _) = Just (parseInfixExpr Ast.InfixPlus)
@@ -146,6 +162,7 @@ infixParser (T.Tok T.Gt _) = Just (parseInfixExpr Ast.InfixGt)
 infixParser (T.Tok T.Eq _) = Just (parseInfixExpr Ast.InfixEq)
 infixParser (T.Tok T.NotEq _) = Just (parseInfixExpr Ast.InfixNotEq)
 infixParser (T.Tok T.Asterisk _) = Just (parseInfixExpr Ast.InfixAsterisk)
+infixParser (T.Tok T.LParen _) = Just parseCallExpr
 infixParser _ = Nothing
 
 -- precedence
@@ -159,6 +176,7 @@ precedence (T.Tok T.Plus _) = Sum
 precedence (T.Tok T.Minus _) = Sum
 precedence (T.Tok T.Slash _) = Product
 precedence (T.Tok T.Asterisk _) = Product
+precedence (T.Tok T.LParen _) = Call
 precedence _ = Lowest
 
 data Prec =

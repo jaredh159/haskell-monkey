@@ -72,6 +72,8 @@ spec = do
          , ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))")
          , ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))")
          , ("3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))")
+         , ("a + add(b * c) + d", "((a + add((b * c))) + d)")
+         , ("add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))")
          ]
     map ((Ast.stringify . program) . fst) cases `shouldBe` map snd cases
 
@@ -112,6 +114,17 @@ spec = do
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
     case singleExpr "fn(x, y, z, a) {}" of
       (Ast.FnLit ["x", "y", "z", "a"] []) -> do return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+
+  it "should parse call expressions" $ do
+    case singleExpr "add(1, 2 * 3, 4 + 5)" of
+      (Ast.Call (Ast.Ident "add") [Ast.IntLit 1, a2, a3]) -> do
+        assertInfix a2 (LitInt 2, Ast.InfixAsterisk, LitInt 3)
+        assertInfix a3 (LitInt 4, Ast.InfixPlus, LitInt 5)
+        return ()
+      expr -> expectationFailure $ "Unexpected expr: " ++ show expr
+    case singleExpr "frobnicate()" of
+      (Ast.Call (Ast.Ident "frobnicate") []) -> do return ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
 
 -- helpers
