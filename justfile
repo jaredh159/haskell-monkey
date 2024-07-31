@@ -1,8 +1,8 @@
 _default:
   @just --choose
 
-run:
-  @cabal run --verbose=1
+run +args:
+  @cabal run haskell-monkey --verbose=1 -- {{args}}
 
 watch-test:
   @watchexec --project-origin . --clear --restart \
