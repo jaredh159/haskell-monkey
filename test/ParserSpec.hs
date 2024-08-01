@@ -1,4 +1,4 @@
-module ParserSpec (spec) where
+module ParserSpec (spec, program) where
 
 import Test.Hspec
 import Parser
@@ -28,12 +28,12 @@ spec = do
 
   it "should parse identifier expressions" $ do
     let tolit (Ast.ExprStmt ident) = lit ident
-    fmap tolit (stmts "foo; bar") `shouldBe` [LitIdent "foo", LitIdent "bar"]
+    fmap tolit (program "foo; bar") `shouldBe` [LitIdent "foo", LitIdent "bar"]
 
   it "should parse boolean literal expressions" $ do
     let input = "true; false;"
     let boolVal (Ast.ExprStmt (Ast.BoolLit val)) = val
-    fmap boolVal (stmts input) `shouldBe` [True, False]
+    fmap boolVal (program input) `shouldBe` [True, False]
 
   it "should parse prefix expressions" $ do
     let pair (Ast.ExprStmt (Ast.Prefix op expr)) = (op, lit expr)
@@ -159,16 +159,13 @@ program src = case parseProgram src of
   Left err -> error ("Parser error: " ++ err)
   Right program -> program
 
-stmts :: String -> [Ast.Stmt]
-stmts src = case program src of (Ast.Program xs) -> xs
-
 singleExpr :: String -> Ast.Expr
 singleExpr src = case stmt src of
   (Ast.ExprStmt expr) -> expr
   stmt -> error $ "Expected Ast.ExprStmt, got: " ++ show stmt
 
 stmt :: String -> Ast.Stmt
-stmt src = case stmts src of
+stmt src = case program src of
   [s] -> s
   stms -> error $ "Expected 1 Ast.Stmt, got: " ++ show (length stms)
 

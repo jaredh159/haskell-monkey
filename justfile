@@ -1,7 +1,7 @@
 _default:
   @just --choose
 
-run +args:
+run *args:
   @cabal run haskell-monkey --verbose=1 -- {{args}}
 
 watch-test:

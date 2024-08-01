@@ -1,17 +1,23 @@
 module Ast (
     Expr(..)
-  , Program(..)
+  , Program
   , Stmt(..)
   , PrefixOp(..)
   , InfixOp(..)
+  , Stringify(..)
   , Node(..)
   ) where
 
 import Token as T
 import Data.List (intercalate)
 
-newtype Program = Program [Stmt]
+data Node =
+    ProgNode Program
+  | StmtNode Stmt
+  | ExprNode Expr
   deriving (Eq, Show)
+
+type Program = [Stmt]
 
 data Stmt =
     LetStmt String Expr
@@ -46,23 +52,20 @@ data Expr =
   | If { cond :: Expr, conseq :: [Stmt], alt :: Maybe [Stmt] }
   deriving (Eq, Show)
 
--- Node
+-- Stringify
 
-class Node a where
+class Stringify a where
   stringify :: a -> String
 
-instance Node Program where
-  stringify (Program stmts) = stringify stmts
-
-instance (Node a) => Node [a] where
+instance (Stringify a) => Stringify [a] where
   stringify = concatMap stringify
 
-instance Node Stmt where
+instance Stringify Stmt where
   stringify (LetStmt ident expr) = "let " ++ ident ++ " = " ++ s expr
   stringify (ReturnStmt expr) = "return " ++ s expr
   stringify (ExprStmt expr) = s expr
 
-instance Node Expr where
+instance Stringify Expr where
   stringify (Prefix op expr) = "(" ++ lexeme op ++ s expr ++ ")"
   stringify (Infix lhs op rhs) = "(" ++ s lhs ++ " " ++ lexeme op ++ " " ++ s rhs ++ ")"
   stringify (Ast.Ident name) = name
@@ -70,11 +73,12 @@ instance Node Expr where
   stringify (BoolLit b) = if b then "true" else "false"
   stringify (FnLit params body) = "fn(" ++ intercalate ", " params ++ ")" ++ s body
   stringify (Call fn args) = s fn ++ "(" ++ intercalate ", " (map s args) ++ ")"
-  stringify (Ast.If cond cons alt) = "if " ++ s cond ++ " " ++ s cons ++ (case alt of
-    Nothing -> ""
-    Just alt' -> "else " ++ s alt')
+  stringify expr@(Ast.If {}) =
+    "if " ++ s (cond expr) ++ " " ++ s (conseq expr) ++ (case alt expr of
+      Nothing -> ""
+      Just altExpr -> "else " ++ s altExpr)
 
-s :: (Node a) => a -> String
+s :: (Stringify a) => a -> String
 s = stringify
 
 -- helpers

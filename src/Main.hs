@@ -3,20 +3,25 @@ import System.Environment (getArgs)
 
 import Lexer
 import Parser (parseProgram)
-import Ast (Program (Program), stringify)
+import qualified Ast
+import Eval (eval)
+import Object
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
     ("tokens":_) -> handleLine (mapM_ print . tokens)
-    ("ast":"string":_) -> handleLine (parse (print . stringify))
-    _ -> handleLine (parse (\(Program stmts) -> mapM_ print stmts))
+    ("ast":"string":_) -> handleLine $ parseThen $ print . Ast.stringify
+    ("ast":_) -> handleLine $ parseThen $ mapM_ print
+    -- _ -> handleLine (parseThen (\stmts -> print (eval (ProgNode stmts))))
+    _ -> handleLine $ parseThen $ print . eval . Ast.ProgNode
+    -- _ -> handleLine (\line -> fmap (\prog -> eval (ProgNode prog)))
 
-parse :: (Program -> IO ()) -> String -> IO ()
-parse f line = case parseProgram line of
+parseThen :: (Ast.Program -> IO ()) -> String -> IO ()
+parseThen f line = case parseProgram line of
   Left e -> putStrLn $ "Parser ERROR: " ++ e
-  Right program -> f program
+  Right stmts -> f stmts
 
 handleLine :: (String -> IO ()) -> IO ()
 handleLine f = do

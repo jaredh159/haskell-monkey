@@ -15,7 +15,7 @@ type InfixParseFn = [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
 parseProgram :: String -> Either Error Ast.Program
 parseProgram src = parseStmts (Lexer.tokens src) [] >>= f where
   f (_, unconsumed@(_:_)) = Left ("Unconsumed input: " ++ show unconsumed)
-  f (stmts, _) = Right (Ast.Program stmts)
+  f (stmts, _) = Right stmts
 
 -- statements
 
