@@ -12,6 +12,7 @@ spec = do
   it "should evaluate literal expressions" $ do
     evalp "5" `shouldBe` ObjInt 5
     evalp "10" `shouldBe` ObjInt 10
+    evalp "5; false; 15;" `shouldBe` ObjInt 15
     evalp "true" `shouldBe` ObjBool True
     evalp "false" `shouldBe` ObjBool False
 
@@ -28,4 +29,7 @@ spec = do
 -- helpers
 
 evalp :: String -> Object
-evalp src = eval $ Ast.ProgNode $ program src
+evalp src = case eval $ Ast.ProgNode $ program src of
+  Right obj -> obj
+  Left err -> error $ "Eval ERROR: " ++ show err
+
