@@ -4,32 +4,39 @@ import Test.Hspec
 import Object
 import qualified Ast
 import Parser
-import Eval (eval)
+import qualified Eval
 import ParserSpec (program)
 
 spec :: Spec
 spec = do
   it "should evaluate literal expressions" $ do
-    evalp "5" `shouldBe` ObjInt 5
-    evalp "10" `shouldBe` ObjInt 10
-    evalp "5; false; 15;" `shouldBe` ObjInt 15
-    evalp "true" `shouldBe` ObjBool True
-    evalp "false" `shouldBe` ObjBool False
+    eval "5" `shouldBe` ObjInt 5
+    eval "10" `shouldBe` ObjInt 10
+    eval "5; false; 15;" `shouldBe` ObjInt 15
+    eval "true" `shouldBe` ObjBool True
+    eval "false" `shouldBe` ObjBool False
 
   it "should evaluate prefix expressions" $ do
-    evalp "!true" `shouldBe` ObjBool False
-    evalp "!false" `shouldBe` ObjBool True
-    evalp "!5" `shouldBe` ObjBool False
-    evalp "!!true" `shouldBe` ObjBool True
-    evalp "!!false" `shouldBe` ObjBool False
-    evalp "!!5" `shouldBe` ObjBool True
-    evalp "-5" `shouldBe` ObjInt (-5)
-    evalp "-10" `shouldBe` ObjInt (-10)
+    eval "!true" `shouldBe` ObjBool False
+    eval "!false" `shouldBe` ObjBool True
+    eval "!5" `shouldBe` ObjBool False
+    eval "!!true" `shouldBe` ObjBool True
+    eval "!!false" `shouldBe` ObjBool False
+    eval "!!5" `shouldBe` ObjBool True
+    eval "-5" `shouldBe` ObjInt (-5)
+    eval "-10" `shouldBe` ObjInt (-10)
+
+  it "should evaluate infix expressions" $ do
+    eval "1 + 2" `shouldBe` ObjInt 3
+    eval "5 + 4" `shouldBe` ObjInt 9
+    eval "5 + 4 * 3" `shouldBe` ObjInt 17
+    eval "(5 + 10 * 2 + 15 / 3) * 2 + -10" `shouldBe` ObjInt 50
+    eval "50 / 2 * 2 + 10" `shouldBe` ObjInt 60
 
 -- helpers
 
-evalp :: String -> Object
-evalp src = case eval $ Ast.ProgNode $ program src of
+eval :: String -> Object
+eval src = case Eval.eval $ Ast.ProgNode $ program src of
   Right obj -> obj
   Left err -> error $ "Eval ERROR: " ++ show err
 

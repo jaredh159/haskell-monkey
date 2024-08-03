@@ -1,4 +1,8 @@
-module Token (Token(..), token, TokenType(..)) where
+module Token (
+    Token(..)
+  , token
+  , TokenType(..)
+  ) where
 
 data Token = Tok TokenType String
   deriving (Show, Eq)
