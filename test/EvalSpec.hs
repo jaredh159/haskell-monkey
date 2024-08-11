@@ -32,6 +32,18 @@ spec = do
     eval "5 + 4 * 3" `shouldBe` ObjInt 17
     eval "(5 + 10 * 2 + 15 / 3) * 2 + -10" `shouldBe` ObjInt 50
     eval "50 / 2 * 2 + 10" `shouldBe` ObjInt 60
+    eval "1 < 2" `shouldBe` ObjBool True
+    eval "1 > 2" `shouldBe` ObjBool False
+    eval "1 < 1" `shouldBe` ObjBool False
+    eval "1 > 1" `shouldBe` ObjBool False
+    eval "1 == 1" `shouldBe` ObjBool True
+    eval "1 != 1" `shouldBe` ObjBool False
+    eval "1 == 2" `shouldBe` ObjBool False
+    eval "1 != 2" `shouldBe` ObjBool True
+    eval "true == true" `shouldBe` ObjBool True
+    eval "false == false" `shouldBe` ObjBool True
+    eval "true == false" `shouldBe` ObjBool False
+    eval "true != false" `shouldBe` ObjBool True
 
 -- helpers
 
