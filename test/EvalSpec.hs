@@ -1,9 +1,10 @@
 module EvalSpec (spec) where
 
 import Test.Hspec
+
 import Object
 import qualified Ast
-import Parser
+
 import qualified Eval
 import ParserSpec (program)
 
@@ -48,7 +49,7 @@ spec = do
 -- helpers
 
 eval :: String -> Object
-eval src = case Eval.eval $ Ast.ProgNode $ program src of
+eval src = case Eval.eval (Ast.ProgNode (program src)) of
   Right obj -> obj
   Left err -> error $ "Eval ERROR: " ++ show err
 
