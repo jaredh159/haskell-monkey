@@ -46,10 +46,19 @@ spec = do
     eval "true == false" `shouldBe` ObjBool False
     eval "true != false" `shouldBe` ObjBool True
 
+  it "should evaluate if else expressions" $ do
+    eval "if (true) { 10 }" `shouldBe` ObjInt 10
+    eval "if (false) { 10 }" `shouldBe` ObjNull
+    eval "if (1) { 10 }" `shouldBe` ObjInt 10
+    eval "if (1 < 2) { 10 }" `shouldBe` ObjInt 10
+    eval "if (1 > 2) { 10 }" `shouldBe` ObjNull
+    eval "if (1 > 2) { 10 } else { 20 }" `shouldBe` ObjInt 20
+    eval "if (1 < 2) { 10 } else { 20 }" `shouldBe` ObjInt 10
+
 -- helpers
 
 eval :: String -> Object
-eval src = case Eval.eval (Ast.ProgNode (program src)) of
+eval src = case Eval.eval (Ast.StmtsNode (program src)) of
   Right obj -> obj
   Left err -> error $ "Eval ERROR: " ++ show err
 

@@ -1,6 +1,5 @@
 module Ast (
     Expr(..)
-  , Program
   , Stmt(..)
   , PrefixOp(..)
   , InfixOp(..)
@@ -12,12 +11,10 @@ import Token as T
 import Data.List (intercalate)
 
 data Node =
-    ProgNode Program
+    StmtsNode [Stmt]
   | StmtNode Stmt
   | ExprNode Expr
   deriving (Eq, Show)
-
-type Program = [Stmt]
 
 data Stmt =
     LetStmt String Expr

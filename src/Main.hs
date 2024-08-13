@@ -17,11 +17,11 @@ main = do
     ("tokens":_) -> handleLine (mapM_ print . tokens)
     ("ast":"string":_) -> handleLine $ parseThen $ print . Ast.stringify
     ("ast":_) -> handleLine $ parseThen $ mapM_ print
-    _ -> handleLine $ parseThen (\prog -> case eval (Ast.ProgNode prog) of
+    _ -> handleLine $ parseThen (\prog -> case eval (Ast.StmtsNode prog) of
       Left err -> putStrLn $ red $ "Eval ERROR: " ++ err
       Right result -> putStrLn $ green $ show result)
 
-parseThen :: (Ast.Program -> IO ()) -> String -> IO ()
+parseThen :: ([Ast.Stmt] -> IO ()) -> String -> IO ()
 parseThen f line = case parseProgram line of
   Left e -> putStrLn $ "Parser ERROR: " ++ e
   Right stmts -> f stmts

@@ -12,7 +12,7 @@ type ParseResult a = Either Error (Result a)
 type PrefixParseFn = [T.Token] -> ParseResult (Maybe Ast.Expr)
 type InfixParseFn = [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
 
-parseProgram :: String -> Either Error Ast.Program
+parseProgram :: String -> Either Error [Ast.Stmt]
 parseProgram src = parseStmts (Lexer.tokens src) [] >>= f where
   f (_, unconsumed@(_:_)) = Left ("Unconsumed input: " ++ show unconsumed)
   f (stmts, _) = Right stmts
