@@ -55,10 +55,29 @@ spec = do
     eval "if (1 > 2) { 10 } else { 20 }" `shouldBe` ObjInt 20
     eval "if (1 < 2) { 10 } else { 20 }" `shouldBe` ObjInt 10
 
+  it "should evaluate return expressions" $ do
+    eval "return 10;" `shouldBe` ObjInt 10
+    eval "return 10; 9;" `shouldBe` ObjInt 10
+    eval "return 2 * 5; 9;" `shouldBe` ObjInt 10
+    eval "9; return 2 * 5; 9;" `shouldBe` ObjInt 10
+    eval "if (2>1) { if (2>1) { return 10; } return 9; }" `shouldBe` ObjInt 10
+
+  it "should report errors" $ do
+    evalE "5 + true" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"
+    evalE "5 + true; 5" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"
+    evalE "-true" `shouldBe` "Unknown operator: -BOOLEAN"
+    evalE "true + false" `shouldBe` "Type mismatch: BOOLEAN + BOOLEAN"
+
 -- helpers
 
 eval :: String -> Object
-eval src = case Eval.eval (Ast.StmtsNode (program src)) of
+eval src = case Eval.eval (Ast.ProgNode (program src)) of
   Right obj -> obj
   Left err -> error $ "Eval ERROR: " ++ show err
+
+evalE :: String -> String
+evalE src = case Eval.eval (Ast.ProgNode (program src)) of
+  Right obj -> error $ "Expected error, got: " ++ show obj
+  Left err -> err
+
 

@@ -154,7 +154,7 @@ lit (Ast.Ident i) = LitIdent i
 lit (Ast.BoolLit b) = LitBool b
 lit exp = error $ "Unexpected not literal: " ++ show exp
 
-program :: String -> [Ast.Stmt]
+program :: String -> Ast.Program
 program src = case parseProgram src of
   Left err -> error ("Parser error: " ++ err)
   Right program -> program

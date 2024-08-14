@@ -5,13 +5,16 @@ module Ast (
   , InfixOp(..)
   , Stringify(..)
   , Node(..)
+  , Lexeme(..)
+  , Program
   ) where
 
 import Token as T
 import Data.List (intercalate)
 
 data Node =
-    StmtsNode [Stmt]
+    ProgNode [Stmt]
+  | BlockNode [Stmt]
   | StmtNode Stmt
   | ExprNode Expr
   deriving (Eq, Show)
@@ -21,6 +24,8 @@ data Stmt =
   | ReturnStmt Expr
   | ExprStmt Expr
   deriving (Eq, Show)
+
+type Program = [Stmt]
 
 data InfixOp =
     InfixPlus

@@ -27,12 +27,19 @@ emptyEnv :: Env
 emptyEnv = Env M.empty Nothing
 
 evalR :: Ast.Node -> EvalResult
+evalR (Ast.ProgNode stmts) = unwrapReturn <$> evalStmts stmts
+evalR (Ast.BlockNode stmts) = evalStmts stmts
 evalR (Ast.StmtNode stmt) = evalStmt stmt
 evalR (Ast.ExprNode expr) = evalExpr expr
-evalR (Ast.StmtsNode stmts) = foldM (const $ evalR . Ast.StmtNode) ObjNull stmts
+
+evalStmts :: [Ast.Stmt] -> EvalResult
+evalStmts = foldM (\prev stmt -> case prev of
+  obj@(ObjReturn _) -> return obj
+  _ -> evalR (Ast.StmtNode stmt)) ObjNull
 
 evalStmt :: Ast.Stmt -> EvalResult
 evalStmt (Ast.ExprStmt expr) = evalExpr expr
+evalStmt (Ast.ReturnStmt expr) =  ObjReturn <$> evalExpr expr
 evalStmt stmt = throwE  $ "Unhandled statement type: " ++ show stmt
 
 evalExpr :: Ast.Expr -> EvalResult
@@ -41,13 +48,13 @@ evalExpr (Ast.BoolLit bool) = return (ObjBool bool)
 evalExpr (Ast.Prefix Ast.PrefixBang expr) = negate <$> evalR (Ast.ExprNode expr)
 evalExpr (Ast.Prefix Ast.PrefixMinus expr) = evalR (Ast.ExprNode expr) >>= f where
   f (ObjInt int) = return $ ObjInt (-int)
-  f _ = throwE "Invalid rhs for PrefixMinus expression"
+  f obj = throwE $ "Unknown operator: -" ++ objType obj
 evalExpr (Ast.Infix lhs op rhs) = evalInfixExpr lhs op rhs
 evalExpr (Ast.If cond cons alt) = do
   cond' <- evalR $ Ast.ExprNode cond
   case (truthy cond', alt) of
-    (True, _) -> evalR $ Ast.StmtsNode cons
-    (False, Just alt') -> evalR $ Ast.StmtsNode alt'
+    (True, _) -> evalR $ Ast.BlockNode cons
+    (False, Just alt') -> evalR $ Ast.BlockNode alt'
     _ -> return ObjNull
 evalExpr expr = throwE $ "Unhandled expr type: " ++ show expr
 
@@ -65,7 +72,13 @@ evalInfixExpr lhs op rhs = do
      (ObjInt lval, Ast.InfixNotEq, ObjInt rval) -> return $ ObjBool (lval /= rval)
      (ObjBool lval, Ast.InfixEq, ObjBool rval) -> return $ ObjBool (lval == rval)
      (ObjBool lval, Ast.InfixNotEq, ObjBool rval) -> return $ ObjBool (lval /= rval)
-     _ -> throwE $ "Invalid operands for " ++ show op
+     _ -> throwE $ "Type mismatch: " ++ objType lhs' ++ " " ++ Ast.lexeme op ++ " " ++ objType rhs'
+
+-- helpers
+
+unwrapReturn :: Object -> Object
+unwrapReturn (ObjReturn obj) = obj
+unwrapReturn obj = obj
 
 negate :: Object -> Object
 negate (ObjBool bool) = ObjBool $ not bool
