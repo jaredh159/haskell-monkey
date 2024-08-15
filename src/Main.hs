@@ -1,10 +1,13 @@
 import System.IO (stdout, hFlush)
 import System.Environment (getArgs)
+import Control.Monad (void)
 
 import Lexer
 import Parser (parseProgram)
 import qualified Ast
-import Eval (eval)
+import Eval (evalWith)
+import qualified Env
+import Env (Env)
 import Object
 
 main :: IO ()
@@ -17,14 +20,29 @@ main = do
     ("tokens":_) -> handleLine (mapM_ print . tokens)
     ("ast":"string":_) -> handleLine $ parseThen $ print . Ast.stringify
     ("ast":_) -> handleLine $ parseThen $ mapM_ print
-    _ -> handleLine $ parseThen (\prog -> case eval (Ast.ProgNode prog) of
-      Left err -> putStrLn $ red $ "Eval ERROR: " ++ err
-      Right result -> putStrLn $ green $ show result)
+    _ -> void $ evalLine Env.empty
 
 parseThen :: (Ast.Program -> IO ()) -> String -> IO ()
 parseThen f line = case parseProgram line of
   Left e -> putStrLn $ "Parser ERROR: " ++ e
   Right stmts -> f stmts
+
+evalLine :: Env -> IO Env
+evalLine env = do
+  putStr $ cyan ">> "
+  hFlush stdout
+  line <- getLine
+  case parseProgram line of
+    Left e -> do
+      putStrLn $ red $ "Parser ERROR: " ++ e
+      evalLine env
+    Right prog -> case evalWith (Ast.ProgNode prog) env of
+      (Left err, env') -> do
+        putStrLn $ red $ "Eval ERROR: " ++ err
+        evalLine env'
+      (Right obj, env') -> do
+        putStrLn $ green $ show obj
+        evalLine env'
 
 handleLine :: (String -> IO ()) -> IO ()
 handleLine f = do

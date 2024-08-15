@@ -62,11 +62,18 @@ spec = do
     eval "9; return 2 * 5; 9;" `shouldBe` ObjInt 10
     eval "if (2>1) { if (2>1) { return 10; } return 9; }" `shouldBe` ObjInt 10
 
+  it "should evaluate let expressions" $ do
+    eval "let a = 5; a;" `shouldBe` ObjInt 5
+    eval "let a = 5 * 5; a;" `shouldBe` ObjInt 25
+    eval "let a = 5; let b = a; b" `shouldBe` ObjInt 5
+    eval "let a = 5; let b = a; let c = a + b + 5; c;" `shouldBe` ObjInt 15
+
   it "should report errors" $ do
     evalE "5 + true" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"
     evalE "5 + true; 5" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"
     evalE "-true" `shouldBe` "Unknown operator: -BOOLEAN"
     evalE "true + false" `shouldBe` "Type mismatch: BOOLEAN + BOOLEAN"
+    evalE "foobar" `shouldBe` "Identifier not found: `foobar`"
 
 -- helpers
 

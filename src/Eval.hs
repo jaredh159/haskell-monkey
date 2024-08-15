@@ -1,30 +1,27 @@
-module Eval (
-    eval,
-    evalWith,
-    emptyEnv,
-    Env(..)
+module Eval
+  ( eval
+  , evalWith
   ) where
 
 import Prelude hiding (negate)
 import qualified Ast
 import Object
+import qualified Env
+import Env (Env)
 
-import Control.Monad.State (State, foldM, evalState)
+import Control.Monad.State (State, foldM, evalState, runState)
+import Control.Monad.State (MonadTrans (lift), MonadState (get), modify)
 import Control.Monad.Trans.Except (ExceptT, throwE, runExceptT)
 import qualified Data.Map as M
 
-data Env = Env (M.Map String Object) (Maybe Env)
 type EvalResult = ExceptT Error (State Env) Object
 type Error = String
 
 eval :: Ast.Node -> Either Error Object
-eval node = evalState (runExceptT $ evalR node) emptyEnv
+eval node = evalState (runExceptT $ evalR node) Env.empty
 
-evalWith :: Ast.Node -> Env -> Either Error Object
-evalWith node = evalState $ runExceptT $ evalR node
-
-emptyEnv :: Env
-emptyEnv = Env M.empty Nothing
+evalWith :: Ast.Node -> Env -> (Either Error Object, Env)
+evalWith node = runState $ runExceptT $ evalR node
 
 evalR :: Ast.Node -> EvalResult
 evalR (Ast.ProgNode stmts) = unwrapReturn <$> evalStmts stmts
@@ -34,13 +31,16 @@ evalR (Ast.ExprNode expr) = evalExpr expr
 
 evalStmts :: [Ast.Stmt] -> EvalResult
 evalStmts = foldM (\prev stmt -> case prev of
-  obj@(ObjReturn _) -> return obj
+  wrapped@(ObjReturn _) -> return wrapped
   _ -> evalR (Ast.StmtNode stmt)) ObjNull
 
 evalStmt :: Ast.Stmt -> EvalResult
 evalStmt (Ast.ExprStmt expr) = evalExpr expr
 evalStmt (Ast.ReturnStmt expr) =  ObjReturn <$> evalExpr expr
-evalStmt stmt = throwE  $ "Unhandled statement type: " ++ show stmt
+evalStmt (Ast.LetStmt ident expr) = do
+  val <- evalExpr expr
+  lift $ modify (Env.bind ident val)
+  return ObjNull
 
 evalExpr :: Ast.Expr -> EvalResult
 evalExpr (Ast.IntLit int) = return (ObjInt int)
@@ -56,6 +56,11 @@ evalExpr (Ast.If cond cons alt) = do
     (True, _) -> evalR $ Ast.BlockNode cons
     (False, Just alt') -> evalR $ Ast.BlockNode alt'
     _ -> return ObjNull
+evalExpr (Ast.Ident ident) = do
+  env <- lift get
+  case Env.get ident env of
+    Just obj -> return obj
+    Nothing -> throwE $ "Identifier not found: `" ++ ident ++ "`"
 evalExpr expr = throwE $ "Unhandled expr type: " ++ show expr
 
 evalInfixExpr :: Ast.Expr -> Ast.InfixOp -> Ast.Expr -> EvalResult

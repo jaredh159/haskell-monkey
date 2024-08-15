@@ -1,4 +1,7 @@
-module Lexer (nextToken, tokens) where
+module Lexer
+  ( nextToken
+  , tokens
+  ) where
 
 import Control.Monad.State
 import Control.Applicative

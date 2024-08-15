@@ -1,5 +1,5 @@
-module Ast (
-    Expr(..)
+module Ast
+  ( Expr(..)
   , Stmt(..)
   , PrefixOp(..)
   , InfixOp(..)

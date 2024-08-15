@@ -1,5 +1,5 @@
-module Token (
-    Token(..)
+module Token
+  ( Token(..)
   , token
   , TokenType(..)
   ) where

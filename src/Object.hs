@@ -1,5 +1,5 @@
-module Object (
-    Object(..)
+module Object
+  ( Object(..)
   , objType
   ) where
 

@@ -1,4 +1,6 @@
-module Parser (parseProgram) where
+module Parser
+  ( parseProgram
+  ) where
 
 import Control.Arrow (first)
 
