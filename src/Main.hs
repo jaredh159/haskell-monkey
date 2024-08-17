@@ -65,6 +65,7 @@ showT ObjNull = grey "null"
 showT (ObjFn {}) = "<fn>"
 showT (ObjString string) = cyan $ "\"" ++ string ++ "\""
 showT (ObjBuiltIn _) = grey "<builtin fn>"
+showT (ObjArray objs) = "[" ++ unwords (map showT objs) ++ "]"
 showT (ObjReturn _) = undefined
 
 scrollTop :: IO ()

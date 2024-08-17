@@ -20,7 +20,7 @@ spec = do
         \let result = add(five, ten);\n\
         \!-/*5;\n\
         \5 < 10 > 5;\n\
-        \true false if else return == !=; \"foobar\""
+        \true false if else return == !=; \"foobar\"[]"
       in tokens input `shouldBe`
           [ token Let "let"
           , token Ident "five2"
@@ -79,6 +79,8 @@ spec = do
           , token NotEq "!="
           , token SemiColon ";"
           , token MString "foobar"
+          , token LBracket "["
+          , token RBracket "]"
           ]
 
 

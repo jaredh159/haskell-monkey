@@ -29,7 +29,7 @@ enclosed env = E M.empty (Just env)
 
 -- object
 
-data BuiltIn = BuiltInLen | BuiltInPuts
+data BuiltIn = BuiltInLen | BuiltInPuts | BuiltInFirst | BuiltInLast | BuiltInRest
   deriving (Show, Eq)
 
 data Object =
@@ -39,6 +39,7 @@ data Object =
   | ObjString String
   | ObjReturn Object
   | ObjBuiltIn BuiltIn
+  | ObjArray [Object]
   | ObjFn [String] [Ast.Stmt] Env
   deriving (Eq, Show)
 
@@ -49,4 +50,5 @@ objType (ObjBool _) = "BOOLEAN"
 objType (ObjString _) = "STRING"
 objType (ObjReturn _) = "RETURN"
 objType (ObjBuiltIn _) = "BUILTIN"
+objType (ObjArray _) = "ARRAY"
 objType (ObjFn {}) = "FN"

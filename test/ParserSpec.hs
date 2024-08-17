@@ -35,6 +35,15 @@ spec = do
     let boolVal (Ast.ExprStmt (Ast.BoolLit val)) = val
     fmap boolVal (program input) `shouldBe` [True, False]
 
+  it "should parse array literals" $ do
+    program "[1]" `shouldBe` [Ast.ExprStmt (Ast.ArrayLit [Ast.IntLit 1])]
+    program "[1, 2]" `shouldBe` [Ast.ExprStmt (Ast.ArrayLit [Ast.IntLit 1, Ast.IntLit 2])]
+    program "[]" `shouldBe` [Ast.ExprStmt (Ast.ArrayLit [])]
+
+  it "should parse index expressions" $ do
+    let idx = Ast.Infix (Ast.IntLit 1) Ast.InfixPlus (Ast.IntLit 1)
+    program "foo[1 + 1]" `shouldBe` [Ast.ExprStmt (Ast.Index (Ast.Ident "foo") idx)]
+
   it "should parse string literal expressions" $ do
     let input = "\"foobar\"; \"hello world\";"
     let tostr (Ast.ExprStmt (Ast.StringLit s)) = s

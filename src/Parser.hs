@@ -86,6 +86,7 @@ prefixParser (T.Tok T.Minus _) = Just (parsePrefixExpr Ast.PrefixMinus)
 prefixParser (T.Tok T.LParen _) = Just parseGroupedExpr
 prefixParser (T.Tok T.If _) = Just parseIfExpr
 prefixParser (T.Tok T.Function _) = Just parseFunction
+prefixParser (T.Tok T.LBracket _) = Just parseArrayLitExpr
 prefixParser _ = Nothing
 
 parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> ParseResult (Maybe Ast.Expr)
@@ -137,6 +138,11 @@ parseGroupedExpr ts = do
     (Just _, []) -> Left "Expected Tok.RParen, found EOF"
     (Just _, t:_) -> Left $ "Expected Tok.RParen, found: " ++ show t
 
+parseArrayLitExpr :: PrefixParseFn
+parseArrayLitExpr ts = do
+  (exprs, ts') <- parseExprList T.RBracket [] ts
+  Right (Just $ Ast.ArrayLit exprs, ts')
+
 -- infix expressons
 
 parseInfixExpr :: Ast.InfixOp -> InfixParseFn
@@ -145,24 +151,37 @@ parseInfixExpr op (t:ts) lhs = do
   pure $ first (fmap $ Ast.Infix lhs op) result
 parseInfixExpr _ [] _ = Left "Expected InfixOp token, got EOF"
 
-parseCallExpr ::  [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)
+parseCallExpr :: InfixParseFn
 parseCallExpr ((T.Tok T.LParen _):ts) fn = do
-  (args, ts') <- parseCallArgs [] ts
+  (args, ts') <- parseExprList T.RParen [] ts
   Right (Just (Ast.Call fn args), ts')
 parseCallExpr (t:_) _ = Left $ "Expected Tok.LParen, got:" ++ show t
 parseCallExpr [] _ = Left "Expected Tok.LParen, got EOF"
 
-parseCallArgs :: [Ast.Expr] -> [T.Token] -> ParseResult [Ast.Expr]
-parseCallArgs args ((T.Tok T.RParen _):ts) = Right (args, ts)
-parseCallArgs _ ((T.Tok T.Comma _):(T.Tok T.RParen _):_) =
-  Left "Unexpected trailing comma in argument list"
-parseCallArgs args ((T.Tok T.Comma _):ts) = parseCallArgs args ts
-parseCallArgs args ts@(_:_) = do
-  argResult <- parseExpr Lowest ts
-  case argResult of
-    (Just arg, ts') -> parseCallArgs (args ++ [arg]) ts'
-    (Nothing, ts') -> parseCallArgs args ts'
-parseCallArgs _ [] = Left "Unexpected EOF parsing argument list"
+parseExprList :: T.TokenType -> [Ast.Expr] -> [T.Token] -> ParseResult [Ast.Expr]
+parseExprList end args ts = case (end, ts) of
+  (T.RParen, (T.Tok T.RParen _):rest) -> Right (args, rest)
+  (T.RBracket, (T.Tok T.RBracket _):rest) -> Right (args, rest)
+  (T.RParen, (T.Tok T.Comma _):(T.Tok T.RBracket _):_) ->
+    Left "Unexpected trailing comma in expression list"
+  (T.RParen, (T.Tok T.Comma _):(T.Tok T.RParen _):_) ->
+    Left "Unexpected trailing comma in expression list"
+  _ -> case ts of
+    ((T.Tok T.Comma _):rest) -> parseExprList end args rest
+    ts'@(_:_) -> do
+      argResult <- parseExpr Lowest ts'
+      case argResult of
+        (Just arg, ts'') -> parseExprList end (args ++ [arg]) ts''
+        (Nothing, ts'') -> parseExprList end args ts''
+    [] -> Left "Unexpected EOF in expression list"
+
+parseIndexExpr :: InfixParseFn
+parseIndexExpr (_:ts) lhs = do
+  result <- parseExpr Lowest ts
+  case result of
+    (Just idx, (T.Tok T.RBracket _):ts') -> Right (Just (Ast.Index lhs idx), ts')
+    _ -> Left "Unexpected failure parsing index expr"
+parseIndexExpr [] _ = undefined -- unreachable
 
 infixParser :: T.Token -> Maybe InfixParseFn
 infixParser (T.Tok T.Plus _) = Just (parseInfixExpr Ast.InfixPlus)
@@ -174,6 +193,7 @@ infixParser (T.Tok T.Eq _) = Just (parseInfixExpr Ast.InfixEq)
 infixParser (T.Tok T.NotEq _) = Just (parseInfixExpr Ast.InfixNotEq)
 infixParser (T.Tok T.Asterisk _) = Just (parseInfixExpr Ast.InfixAsterisk)
 infixParser (T.Tok T.LParen _) = Just parseCallExpr
+infixParser (T.Tok T.LBracket _) = Just parseIndexExpr
 infixParser _ = Nothing
 
 -- precedence
@@ -188,6 +208,7 @@ precedence (T.Tok T.Minus _) = Sum
 precedence (T.Tok T.Slash _) = Product
 precedence (T.Tok T.Asterisk _) = Product
 precedence (T.Tok T.LParen _) = Call
+precedence (T.Tok T.LBracket _) = Index
 precedence _ = Lowest
 
 data Prec =
@@ -198,5 +219,6 @@ data Prec =
   | Product
   | Prefix
   | Call
+  | Index
   deriving (Show, Eq, Ord)
 

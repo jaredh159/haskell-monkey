@@ -23,6 +23,8 @@ data TokenType =
   | RParen
   | LBrace
   | RBrace
+  | LBracket
+  | RBracket
   | Function
   | Let
   | Minus

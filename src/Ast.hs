@@ -47,8 +47,10 @@ data Expr =
     BoolLit Bool
   | IntLit Int
   | StringLit String
+  | ArrayLit [Expr]
   | Prefix PrefixOp Expr
   | Infix Expr InfixOp Expr
+  | Index Expr Expr
   | Ident String
   | FnLit [String] [Stmt]
   | Call Expr [Expr]
@@ -77,6 +79,8 @@ instance Stringify Expr where
   stringify (BoolLit b) = if b then "true" else "false"
   stringify (FnLit params body) = "fn(" ++ intercalate ", " params ++ ")" ++ s body
   stringify (Call fn args) = s fn ++ "(" ++ intercalate ", " (map s args) ++ ")"
+  stringify (ArrayLit exprs) = "[" ++ intercalate ", " (map s exprs) ++ "]"
+  stringify (Index lhs index) = "(" ++ s lhs ++ "[" ++ s index ++ "])"
   stringify expr@(Ast.If {}) =
     "if " ++ s (cond expr) ++ " " ++ s (conseq expr) ++ (case alt expr of
       Nothing -> ""

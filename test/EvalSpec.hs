@@ -85,6 +85,29 @@ spec = do
   it "should evaluate builtin functions" $ do
     eval "len(\"\")" `shouldBe` ObjInt 0
     eval "len(\"foo\")" `shouldBe` ObjInt 3
+    eval "len([])" `shouldBe` ObjInt 0
+    eval "len([1, 2, 3])" `shouldBe` ObjInt 3
+    eval "first([1, 2, 3])" `shouldBe` ObjInt 1
+    eval "first([])" `shouldBe` ObjNull
+    eval "last([1, 2, 3])" `shouldBe` ObjInt 3
+    eval "last([])" `shouldBe` ObjNull
+    -- eval "rest([1, 2, 3])" `shouldBe` ObjArray [ObjInt 2, ObjInt 3]
+    -- eval "rest([1, 2])" `shouldBe` ObjArray [ObjInt 2]
+    -- eval "rest([])" `shouldBe` ObjNull
+
+  it "should evaluate array literals" $ do
+    eval "[1, 2 * 2, 3 + 3]" `shouldBe` ObjArray [ObjInt 1, ObjInt 4, ObjInt 6]
+
+  it "should evaluate index expressions" $ do
+    eval "[1, 2, 3][0]" `shouldBe` ObjInt 1
+    eval "[1, 2, 3][1]" `shouldBe` ObjInt 2
+    eval "[1, 2, 3][2]" `shouldBe` ObjInt 3
+    eval "[1, 2, 3][3]" `shouldBe` ObjNull
+    eval "[1, 2, 3][-1]" `shouldBe` ObjNull
+    eval "[1, 2, 3][1 + 1]" `shouldBe` ObjInt 3
+    eval "let a = [1, 2, 3]; a[1 + 1]" `shouldBe` ObjInt 3
+    eval "let a = [1, 2, 3]; a[0] + a[1] + a[2]" `shouldBe` ObjInt 6
+    eval "let a = [1, 2, 3]; let i = a[0]; a[i]" `shouldBe` ObjInt 2
 
   it "should report errors" $ do
     evalE "5 + true" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"

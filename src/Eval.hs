@@ -49,13 +49,13 @@ evalExpr :: Ast.Expr -> EvalResult
 evalExpr (Ast.IntLit int) = pure (ObjInt int)
 evalExpr (Ast.BoolLit bool) = pure (ObjBool bool)
 evalExpr (Ast.StringLit string) = pure (ObjString string)
-evalExpr (Ast.Prefix Ast.PrefixBang expr) = negate <$> evalR (Ast.ExprNode expr)
-evalExpr (Ast.Prefix Ast.PrefixMinus expr) = evalR (Ast.ExprNode expr) >>= f where
+evalExpr (Ast.Prefix Ast.PrefixBang expr) = negate <$> evalExpr expr
+evalExpr (Ast.Prefix Ast.PrefixMinus expr) = evalExpr expr >>= f where
   f (ObjInt int) = pure $ ObjInt (-int)
   f obj = throwE $ "Unknown operator: -" ++ objType obj
 evalExpr (Ast.Infix lhs op rhs) = evalInfixExpr lhs op rhs
 evalExpr (Ast.If cond cons alt) = do
-  cond' <- evalR $ Ast.ExprNode cond
+  cond' <- evalExpr cond
   case (truthy cond', alt) of
     (True, _) -> evalR $ Ast.BlockNode cons
     (False, Just alt') -> evalR $ Ast.BlockNode alt'
@@ -66,24 +66,59 @@ evalExpr (Ast.Ident ident) = do
     Just obj -> pure obj
     Nothing -> case ident of
       "len" -> pure $ ObjBuiltIn BuiltInLen
+      "first" -> pure $ ObjBuiltIn BuiltInFirst
+      "last" -> pure $ ObjBuiltIn BuiltInLast
+      "rest" -> pure $ ObjBuiltIn BuiltInRest
       _ -> throwE $ "Identifier not found: `" ++ ident ++ "`"
 evalExpr (Ast.FnLit params body) = do
   env <- lift get
   pure $ ObjFn params body env
+evalExpr (Ast.ArrayLit exprs) = ObjArray <$> mapM evalExpr exprs
+evalExpr (Ast.Index lhs idx) = do
+  lhs' <- evalExpr lhs
+  idx' <- evalExpr idx
+  case (lhs', idx') of
+    (ObjArray elems, ObjInt i) -> pure $ indexArray elems i
+    (lhs'', idx'') -> throwE $
+      "Invalid index expr: " ++ objType lhs'' ++ "[" ++ objType idx'' ++ "]"
+  where
+    indexArray items i'
+      | i' < 0 || i' >= length items = ObjNull
+      | otherwise = items !! i'
 evalExpr (Ast.Call fn args) = do
-  fn' <- evalR $ Ast.ExprNode fn
+  fn' <- evalExpr fn
   case fn' of
     (ObjFn params body outer) -> do
       when (length params /= length args) $ throwE $
         "Incorrect num args, expected: " ++ show (length params)
-      args' <- mapM evalR $ Ast.ExprNode <$> args
+      args' <- mapM evalExpr args
       let fnEnv = extendFnEnv outer params args'
       liftEither $ evalIn (Ast.BlockNode body) fnEnv
     (ObjBuiltIn BuiltInLen) -> do
-      args' <- mapM evalR $ Ast.ExprNode <$> args
+      args' <- mapM evalExpr args
       case args' of
         [ObjString string] -> pure $ ObjInt $ length string
+        [ObjArray elems] -> pure $ ObjInt $ length elems
         [obj] -> throwE $ "Argument to `len` not supported, got " ++ objType obj
+        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
+    (ObjBuiltIn BuiltInFirst) -> do
+      args' <- mapM evalExpr args
+      case args' of
+        [ObjArray elems] -> pure $ if null elems then ObjNull else head elems
+        [obj] -> throwE $ "Argument to `first` not supported, got " ++ objType obj
+        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
+    (ObjBuiltIn BuiltInLast) -> do
+      args' <- mapM evalExpr args
+      case args' of
+        [ObjArray elems] -> pure $ if null elems then ObjNull else last elems
+        [obj] -> throwE $ "Argument to `last` not supported, got " ++ objType obj
+        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
+    (ObjBuiltIn BuiltInRest) -> do
+      args' <- mapM evalExpr args
+      case args' of
+        [ObjArray []] -> pure ObjNull
+        [ObjArray objs] -> pure $ ObjArray $ tail objs
+        [obj] -> throwE $ "Argument to `rest` not supported, got " ++ objType obj
         objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
     obj -> throwE $ "Not a function: " ++ objType obj
 
