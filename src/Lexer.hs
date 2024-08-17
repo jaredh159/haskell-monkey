@@ -31,6 +31,7 @@ nextToken (ch:rest)
   | ch == '!' = case rest of
     ('=':rest') -> Just (token NotEq "!=", rest')
     _ -> Just (token Bang [ch], rest)
+  | ch == '"' = Just $ string [] rest
   | isLetter ch = Just $ ident $ word [ch] rest
   | isDigit ch = Just $ number [ch] rest
   | isWhitespace ch = nextToken rest
@@ -41,6 +42,13 @@ word acc "" = (reverse acc, "")
 word acc (ch:rest) = if isLetter ch || isDigit ch
   then word (ch:acc) rest
   else (reverse acc, ch:rest)
+
+string :: String -> String -> (Token, String)
+string _ "" = error "Unterminated string literal"
+string acc (ch:rest) = if ch == '"'
+  then (token MString acc, rest)
+  else string (acc ++ [ch]) rest
+
 
 ident :: (String, String) -> (Token, String)
 ident ("let", src) = (token Let "let", src)

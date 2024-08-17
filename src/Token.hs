@@ -27,6 +27,7 @@ data TokenType =
   | Let
   | Minus
   | Bang
+  | MString
   | Asterisk
   | Slash
   | Lt

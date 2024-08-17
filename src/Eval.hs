@@ -48,6 +48,7 @@ evalStmt (Ast.LetStmt ident expr) = do
 evalExpr :: Ast.Expr -> EvalResult
 evalExpr (Ast.IntLit int) = pure (ObjInt int)
 evalExpr (Ast.BoolLit bool) = pure (ObjBool bool)
+evalExpr (Ast.StringLit string) = pure (ObjString string)
 evalExpr (Ast.Prefix Ast.PrefixBang expr) = negate <$> evalR (Ast.ExprNode expr)
 evalExpr (Ast.Prefix Ast.PrefixMinus expr) = evalR (Ast.ExprNode expr) >>= f where
   f (ObjInt int) = pure $ ObjInt (-int)
@@ -88,17 +89,19 @@ evalInfixExpr lhs op rhs = do
   lhs' <- evalExpr lhs
   rhs' <- evalExpr rhs
   case (lhs', op, rhs') of
-     (ObjInt lval, Ast.InfixPlus, ObjInt rval) -> pure $ ObjInt (lval + rval)
-     (ObjInt lval, Ast.InfixMinus, ObjInt rval) -> pure $ ObjInt (lval - rval)
-     (ObjInt lval, Ast.InfixAsterisk, ObjInt rval) -> pure $ ObjInt (lval * rval)
-     (ObjInt lval, Ast.InfixSlash, ObjInt rval) -> pure $ ObjInt (lval `div` rval)
-     (ObjInt lval, Ast.InfixLt, ObjInt rval) -> pure $ ObjBool (lval < rval)
-     (ObjInt lval, Ast.InfixGt, ObjInt rval) -> pure $ ObjBool (lval > rval)
-     (ObjInt lval, Ast.InfixEq, ObjInt rval) -> pure $ ObjBool (lval == rval)
-     (ObjInt lval, Ast.InfixNotEq, ObjInt rval) -> pure $ ObjBool (lval /= rval)
-     (ObjBool lval, Ast.InfixEq, ObjBool rval) -> pure $ ObjBool (lval == rval)
-     (ObjBool lval, Ast.InfixNotEq, ObjBool rval) -> pure $ ObjBool (lval /= rval)
-     _ -> throwE $ "Type mismatch: " ++ objType lhs' ++ " " ++ Ast.lexeme op ++ " " ++ objType rhs'
+    (ObjInt lval, Ast.InfixPlus, ObjInt rval) -> pure $ ObjInt (lval + rval)
+    (ObjString lval, Ast.InfixPlus, ObjString rval) -> pure $ ObjString (lval ++ rval)
+    (ObjInt lval, Ast.InfixMinus, ObjInt rval) -> pure $ ObjInt (lval - rval)
+    (ObjInt lval, Ast.InfixAsterisk, ObjInt rval) -> pure $ ObjInt (lval * rval)
+    (ObjInt lval, Ast.InfixSlash, ObjInt rval) -> pure $ ObjInt (lval `div` rval)
+    (ObjInt lval, Ast.InfixLt, ObjInt rval) -> pure $ ObjBool (lval < rval)
+    (ObjInt lval, Ast.InfixGt, ObjInt rval) -> pure $ ObjBool (lval > rval)
+    (ObjInt lval, Ast.InfixEq, ObjInt rval) -> pure $ ObjBool (lval == rval)
+    (ObjInt lval, Ast.InfixNotEq, ObjInt rval) -> pure $ ObjBool (lval /= rval)
+    (ObjBool lval, Ast.InfixEq, ObjBool rval) -> pure $ ObjBool (lval == rval)
+    (ObjBool lval, Ast.InfixNotEq, ObjBool rval) -> pure $ ObjBool (lval /= rval)
+    (ObjString _, Ast.InfixMinus, ObjString _) -> throwE "Unknown operator: STRING - STRING"
+    _ -> throwE $ "Type mismatch: " ++ objType lhs' ++ " " ++ Ast.lexeme op ++ " " ++ objType rhs'
 
 -- helpers
 

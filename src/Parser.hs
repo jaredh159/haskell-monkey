@@ -80,6 +80,7 @@ prefixParser (T.Tok T.Ident name) = Just (\ts -> Right (Just $ Ast.Ident name, t
 prefixParser (T.Tok T.Int int) = Just (\ts -> Right (Just $ Ast.IntLit (read int), ts))
 prefixParser (T.Tok T.MTrue _) = Just (\ts -> Right (Just $ Ast.BoolLit True, ts))
 prefixParser (T.Tok T.MFalse _) = Just (\ts -> Right (Just $ Ast.BoolLit False, ts))
+prefixParser (T.Tok T.MString s) = Just (\ts -> Right (Just $ Ast.StringLit s, ts))
 prefixParser (T.Tok T.Bang _) = Just (parsePrefixExpr Ast.PrefixBang)
 prefixParser (T.Tok T.Minus _) = Just (parsePrefixExpr Ast.PrefixMinus)
 prefixParser (T.Tok T.LParen _) = Just parseGroupedExpr

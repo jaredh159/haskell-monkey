@@ -16,6 +16,7 @@ spec = do
     eval "5; false; 15;" `shouldBe` ObjInt 15
     eval "true" `shouldBe` ObjBool True
     eval "false" `shouldBe` ObjBool False
+    eval "\"hello world\"" `shouldBe` ObjString "hello world"
 
   it "should evaluate prefix expressions" $ do
     eval "!true" `shouldBe` ObjBool False
@@ -46,6 +47,7 @@ spec = do
     eval "false == false" `shouldBe` ObjBool True
     eval "true == false" `shouldBe` ObjBool False
     eval "true != false" `shouldBe` ObjBool True
+    eval "\"foo\" + \"bar\"" `shouldBe` ObjString "foobar"
 
   it "should evaluate if else expressions" $ do
     eval "if (true) { 10 }" `shouldBe` ObjInt 10
@@ -86,6 +88,7 @@ spec = do
     evalE "-true" `shouldBe` "Unknown operator: -BOOLEAN"
     evalE "true + false" `shouldBe` "Type mismatch: BOOLEAN + BOOLEAN"
     evalE "foobar" `shouldBe` "Identifier not found: `foobar`"
+    evalE "\"foo\" - \"bar\"" `shouldBe` "Unknown operator: STRING - STRING"
 
 -- helpers
 

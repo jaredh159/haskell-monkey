@@ -46,6 +46,7 @@ data PrefixOp =
 data Expr =
     BoolLit Bool
   | IntLit Int
+  | StringLit String
   | Prefix PrefixOp Expr
   | Infix Expr InfixOp Expr
   | Ident String
@@ -72,6 +73,7 @@ instance Stringify Expr where
   stringify (Infix lhs op rhs) = "(" ++ s lhs ++ " " ++ lexeme op ++ " " ++ s rhs ++ ")"
   stringify (Ast.Ident name) = name
   stringify (IntLit i) = show i
+  stringify (StringLit string) = string
   stringify (BoolLit b) = if b then "true" else "false"
   stringify (FnLit params body) = "fn(" ++ intercalate ", " params ++ ")" ++ s body
   stringify (Call fn args) = s fn ++ "(" ++ intercalate ", " (map s args) ++ ")"

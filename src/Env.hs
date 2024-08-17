@@ -32,6 +32,7 @@ data Object =
     ObjNull
   | ObjInt Int
   | ObjBool Bool
+  | ObjString String
   | ObjReturn Object
   | ObjFn [String] [Ast.Stmt] Env
   deriving (Eq, Show)
@@ -40,5 +41,6 @@ objType :: Object -> String
 objType ObjNull = "NULL"
 objType (ObjInt _) = "INTEGER"
 objType (ObjBool _) = "BOOLEAN"
+objType (ObjString _) = "STRING"
 objType (ObjReturn _) = "RETURN"
 objType (ObjFn {}) = "FN"

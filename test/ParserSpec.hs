@@ -35,6 +35,11 @@ spec = do
     let boolVal (Ast.ExprStmt (Ast.BoolLit val)) = val
     fmap boolVal (program input) `shouldBe` [True, False]
 
+  it "should parse string literal expressions" $ do
+    let input = "\"foobar\"; \"hello world\";"
+    let tostr (Ast.ExprStmt (Ast.StringLit s)) = s
+    fmap tostr (program input) `shouldBe` ["foobar", "hello world"]
+
   it "should parse prefix expressions" $ do
     let pair (Ast.ExprStmt (Ast.Prefix op expr)) = (op, lit expr)
     let cases =
