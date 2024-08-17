@@ -10,7 +10,7 @@ import Token
 spec :: Spec
 spec = do
   it "should lex tokens" $ do
-    let input = "let five = 5;\n\
+    let input = "let five2 = 5;\n\
               \let ten = 10;\n\
               \\n\
               \let add = fn(x, y) {\n\
@@ -24,7 +24,7 @@ spec = do
       in tokens input
         `shouldBe` [
                      token Let "let",
-                     token Ident "five",
+                     token Ident "five2",
                      token Assign "=",
                      token Int "5",
                      token SemiColon ";",

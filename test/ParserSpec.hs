@@ -28,7 +28,7 @@ spec = do
 
   it "should parse identifier expressions" $ do
     let tolit (Ast.ExprStmt ident) = lit ident
-    fmap tolit (program "foo; bar") `shouldBe` [LitIdent "foo", LitIdent "bar"]
+    fmap tolit (program "foo; a2") `shouldBe` [LitIdent "foo", LitIdent "a2"]
 
   it "should parse boolean literal expressions" $ do
     let input = "true; false;"
@@ -92,9 +92,9 @@ spec = do
       (Ast.If cond [cons] Nothing) -> do
         assertInfix cond (LitIdent "x", Ast.InfixLt, LitIdent "y")
         case cons of
-          (Ast.ExprStmt (Ast.Ident "x")) -> return ()
+          (Ast.ExprStmt (Ast.Ident "x")) -> pure ()
           s -> expectationFailure $ "Unexpected cons stmt: " ++ show s
-        return ()
+        pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
 
   it "should parse if/else expressions" $ do
@@ -102,28 +102,28 @@ spec = do
       (Ast.If cond [cons] (Just [alt])) -> do
         assertInfix cond (LitIdent "x", Ast.InfixLt, LitIdent "y")
         case cons of
-          (Ast.ExprStmt (Ast.Ident "x")) -> return ()
+          (Ast.ExprStmt (Ast.Ident "x")) -> pure ()
           s -> expectationFailure $ "Unexpected cons stmt: " ++ show s
         case alt of
-          (Ast.ExprStmt (Ast.Ident "y")) -> return ()
+          (Ast.ExprStmt (Ast.Ident "y")) -> pure ()
           s -> expectationFailure $ "Unexpected alt stmt: " ++ show s
-        return ()
+        pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
 
   it "should parse function literals" $ do
     case singleExpr "fn(x, y) { x + y; }" of
       (Ast.FnLit ["x", "y"] [Ast.ExprStmt expr]) -> do
         assertInfix expr (LitIdent "x", Ast.InfixPlus, LitIdent "y")
-        return ()
+        pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
     case singleExpr "fn() {}" of
-      (Ast.FnLit [] []) -> do return ()
+      (Ast.FnLit [] []) -> do pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
     case singleExpr "fn(x) {}" of
-      (Ast.FnLit ["x"] []) -> do return ()
+      (Ast.FnLit ["x"] []) -> do pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
     case singleExpr "fn(x, y, z, a) {}" of
-      (Ast.FnLit ["x", "y", "z", "a"] []) -> do return ()
+      (Ast.FnLit ["x", "y", "z", "a"] []) -> do pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
 
   it "should parse call expressions" $ do
@@ -131,10 +131,10 @@ spec = do
       (Ast.Call (Ast.Ident "add") [Ast.IntLit 1, a2, a3]) -> do
         assertInfix a2 (LitInt 2, Ast.InfixAsterisk, LitInt 3)
         assertInfix a3 (LitInt 4, Ast.InfixPlus, LitInt 5)
-        return ()
+        pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
     case singleExpr "frobnicate()" of
-      (Ast.Call (Ast.Ident "frobnicate") []) -> do return ()
+      (Ast.Call (Ast.Ident "frobnicate") []) -> do pure ()
       expr -> expectationFailure $ "Unexpected expr: " ++ show expr
 
 -- helpers
@@ -142,7 +142,7 @@ spec = do
 assertInfix :: Ast.Expr -> (Lit, Ast.InfixOp, Lit) -> IO ()
 assertInfix ifx@(Ast.Infix lhs op rhs) (el, eop, er)
   = if (lit lhs == el) && (op == eop) && (lit rhs == er)
-    then return ()
+    then pure ()
     else expectationFailure $ "Infix expr did not match expectation: " ++ show ifx
 assertInfix expr _ = expectationFailure $ "Expected infix, got: " ++ show expr
 

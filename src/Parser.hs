@@ -90,7 +90,7 @@ prefixParser _ = Nothing
 parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> ParseResult (Maybe Ast.Expr)
 parsePrefixExpr op ts = do
   result <- parseExpr Prefix ts
-  return $ first (fmap $ Ast.Prefix op) result
+  pure $ first (fmap $ Ast.Prefix op) result
 
 parseFunction :: PrefixParseFn
 parseFunction ((T.Tok T.LParen _):ts) = do
@@ -141,7 +141,7 @@ parseGroupedExpr ts = do
 parseInfixExpr :: Ast.InfixOp -> InfixParseFn
 parseInfixExpr op (t:ts) lhs = do
   result <- parseExpr (precedence t) ts
-  return $ first (fmap $ Ast.Infix lhs op) result
+  pure $ first (fmap $ Ast.Infix lhs op) result
 parseInfixExpr _ [] _ = Left "Expected InfixOp token, got EOF"
 
 parseCallExpr ::  [T.Token] -> Ast.Expr -> ParseResult (Maybe Ast.Expr)

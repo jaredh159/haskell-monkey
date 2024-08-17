@@ -38,7 +38,7 @@ nextToken (ch:rest)
 
 word :: String -> String -> (String, String)
 word acc "" = (reverse acc, "")
-word acc (ch:rest) = if isLetter ch
+word acc (ch:rest) = if isLetter ch || isDigit ch
   then word (ch:acc) rest
   else (reverse acc, ch:rest)
 

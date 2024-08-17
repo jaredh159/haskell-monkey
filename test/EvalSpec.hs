@@ -2,7 +2,7 @@ module EvalSpec (spec) where
 
 import Test.Hspec
 
-import Object
+import Env (Object(..))
 import qualified Ast
 
 import qualified Eval
@@ -30,6 +30,7 @@ spec = do
   it "should evaluate infix expressions" $ do
     eval "1 + 2" `shouldBe` ObjInt 3
     eval "5 + 4" `shouldBe` ObjInt 9
+    eval "5 - 4" `shouldBe` ObjInt 1
     eval "5 + 4 * 3" `shouldBe` ObjInt 17
     eval "(5 + 10 * 2 + 15 / 3) * 2 + -10" `shouldBe` ObjInt 50
     eval "50 / 2 * 2 + 10" `shouldBe` ObjInt 60
@@ -67,6 +68,17 @@ spec = do
     eval "let a = 5 * 5; a;" `shouldBe` ObjInt 25
     eval "let a = 5; let b = a; b" `shouldBe` ObjInt 5
     eval "let a = 5; let b = a; let c = a + b + 5; c;" `shouldBe` ObjInt 15
+
+  it "should evaluate function expressions" $ do
+    let reduce (ObjFn params body _) = (params, Ast.stringify body)
+    reduce (eval "fn(x) { x + 2; };") `shouldBe` (["x"], "(x + 2)")
+    eval "let id = fn(x) { x; }; id(5);" `shouldBe` ObjInt 5
+    eval "let id = fn(x) { return x; }; id(5);" `shouldBe` ObjInt 5
+    eval "let double = fn(x) { x * 2; }; double(5);" `shouldBe` ObjInt 10
+    eval "let add = fn(x, y) { x + y; }; add(5, 5);" `shouldBe` ObjInt 10
+    eval "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));" `shouldBe` ObjInt 20
+    eval "fn(x) { x; }(5)" `shouldBe` ObjInt 5
+    eval "let a = fn(x){fn(y) {x+y};}; let b = a(2); b(2);" `shouldBe` ObjInt 4
 
   it "should report errors" $ do
     evalE "5 + true" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"

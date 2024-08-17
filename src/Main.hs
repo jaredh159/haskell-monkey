@@ -1,14 +1,13 @@
 import System.IO (stdout, hFlush)
 import System.Environment (getArgs)
-import Control.Monad (void)
+import Control.Monad (void, when)
 
 import Lexer
 import Parser (parseProgram)
 import qualified Ast
-import Eval (evalWith)
+import Eval (evalS)
 import qualified Env
-import Env (Env)
-import Object
+import Env (Env, Object(..), objType)
 
 main :: IO ()
 main = do
@@ -32,17 +31,21 @@ evalLine env = do
   putStr $ cyan ">> "
   hFlush stdout
   line <- getLine
-  case parseProgram line of
-    Left e -> do
-      putStrLn $ red $ "Parser ERROR: " ++ e
-      evalLine env
-    Right prog -> case evalWith (Ast.ProgNode prog) env of
-      (Left err, env') -> do
-        putStrLn $ red $ "Eval ERROR: " ++ err
-        evalLine env'
-      (Right obj, env') -> do
-        putStrLn $ green $ show obj
-        evalLine env'
+  case line of
+    ".exit" -> do
+      putStrLn $ magenta "Goodbye!"
+      pure env
+    _ -> case parseProgram line of
+      Left e -> do
+        putStrLn $ red $ "Parser ERROR: " ++ e
+        evalLine env
+      Right prog -> case evalS (Ast.ProgNode prog) env of
+        (Left err, env') -> do
+          putStrLn $ red $ "Eval ERROR: " ++ err
+          evalLine env'
+        (Right obj, env') -> do
+          putStrLn $ showT obj
+          evalLine env'
 
 handleLine :: (String -> IO ()) -> IO ()
 handleLine f = do
@@ -54,11 +57,23 @@ handleLine f = do
 
 -- terminal utilities
 
+showT :: Object -> String
+showT (ObjInt i) = yellow $ show i
+showT (ObjBool True) = green "true"
+showT (ObjBool False) = red "false"
+showT ObjNull = grey "null"
+showT (ObjFn {}) = "<fn>"
+showT (ObjReturn _) = undefined
+
 scrollTop :: IO ()
 scrollTop = putStr "\ESC[H"
 clear :: IO ()
 clear = putStr "\ESC[2J"
 
+grey :: String -> String
+grey s = "\x1b[90m" ++ s ++ "\x1b[0m"
+yellow :: String -> String
+yellow s = "\x1b[33m" ++ s ++ "\x1b[0m"
 red :: String -> String
 red s = "\x1b[31m" ++ s ++ "\x1b[0m"
 green :: String -> String
