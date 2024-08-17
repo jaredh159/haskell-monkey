@@ -82,6 +82,10 @@ spec = do
     eval "fn(x) { x; }(5)" `shouldBe` ObjInt 5
     eval "let a = fn(x){fn(y) {x+y};}; let b = a(2); b(2);" `shouldBe` ObjInt 4
 
+  it "should evaluate builtin functions" $ do
+    eval "len(\"\")" `shouldBe` ObjInt 0
+    eval "len(\"foo\")" `shouldBe` ObjInt 3
+
   it "should report errors" $ do
     evalE "5 + true" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"
     evalE "5 + true; 5" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"
@@ -89,6 +93,8 @@ spec = do
     evalE "true + false" `shouldBe` "Type mismatch: BOOLEAN + BOOLEAN"
     evalE "foobar" `shouldBe` "Identifier not found: `foobar`"
     evalE "\"foo\" - \"bar\"" `shouldBe` "Unknown operator: STRING - STRING"
+    evalE "len(1)" `shouldBe` "Argument to `len` not supported, got INTEGER"
+    evalE "len(1, 2)" `shouldBe` "Wrong num args, expected 1, got 2"
 
 -- helpers
 

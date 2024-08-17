@@ -6,7 +6,7 @@ module Eval
 import Prelude hiding (negate)
 import qualified Ast
 import qualified Env
-import Env (Env, Object(..), objType)
+import Env (Env, Object(..), BuiltIn(..), objType)
 
 import Control.Monad.State (State, foldM, evalState, runState, when)
 import Control.Monad.State (MonadTrans (lift), MonadState (get), modify)
@@ -64,7 +64,9 @@ evalExpr (Ast.Ident ident) = do
   env <- lift get
   case Env.get ident env of
     Just obj -> pure obj
-    Nothing -> throwE $ "Identifier not found: `" ++ ident ++ "`"
+    Nothing -> case ident of
+      "len" -> pure $ ObjBuiltIn BuiltInLen
+      _ -> throwE $ "Identifier not found: `" ++ ident ++ "`"
 evalExpr (Ast.FnLit params body) = do
   env <- lift get
   pure $ ObjFn params body env
@@ -77,6 +79,12 @@ evalExpr (Ast.Call fn args) = do
       args' <- mapM evalR $ Ast.ExprNode <$> args
       let fnEnv = extendFnEnv outer params args'
       liftEither $ evalIn (Ast.BlockNode body) fnEnv
+    (ObjBuiltIn BuiltInLen) -> do
+      args' <- mapM evalR $ Ast.ExprNode <$> args
+      case args' of
+        [ObjString string] -> pure $ ObjInt $ length string
+        [obj] -> throwE $ "Argument to `len` not supported, got " ++ objType obj
+        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
     obj -> throwE $ "Not a function: " ++ objType obj
 
 extendFnEnv :: Env -> [String] -> [Object] -> Env

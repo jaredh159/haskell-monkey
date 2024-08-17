@@ -4,6 +4,7 @@ module Env
   , enclosed
   , bind
   , get
+  , BuiltIn(..)
   , Object(..)
   , objType
   ) where
@@ -28,12 +29,16 @@ enclosed env = E M.empty (Just env)
 
 -- object
 
+data BuiltIn = BuiltInLen | BuiltInPuts
+  deriving (Show, Eq)
+
 data Object =
     ObjNull
   | ObjInt Int
   | ObjBool Bool
   | ObjString String
   | ObjReturn Object
+  | ObjBuiltIn BuiltIn
   | ObjFn [String] [Ast.Stmt] Env
   deriving (Eq, Show)
 
@@ -43,4 +48,5 @@ objType (ObjInt _) = "INTEGER"
 objType (ObjBool _) = "BOOLEAN"
 objType (ObjString _) = "STRING"
 objType (ObjReturn _) = "RETURN"
+objType (ObjBuiltIn _) = "BUILTIN"
 objType (ObjFn {}) = "FN"

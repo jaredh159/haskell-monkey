@@ -64,6 +64,7 @@ showT (ObjBool False) = red "false"
 showT ObjNull = grey "null"
 showT (ObjFn {}) = "<fn>"
 showT (ObjString string) = cyan $ "\"" ++ string ++ "\""
+showT (ObjBuiltIn _) = grey "<builtin fn>"
 showT (ObjReturn _) = undefined
 
 scrollTop :: IO ()
