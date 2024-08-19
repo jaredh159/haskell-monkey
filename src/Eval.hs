@@ -35,7 +35,7 @@ evalR (Ast.ExprNode expr) = evalExpr expr
 evalStmts :: [Ast.Stmt] -> EvalResult
 evalStmts = foldM (\prev stmt -> case prev of
   wrapped@(ObjReturn _) -> pure wrapped
-  _ -> evalR (Ast.StmtNode stmt)) ObjNull
+  _ -> evalStmt stmt) ObjNull
 
 evalStmt :: Ast.Stmt -> EvalResult
 evalStmt (Ast.ExprStmt expr) = evalExpr expr
@@ -69,6 +69,7 @@ evalExpr (Ast.Ident ident) = do
       "first" -> pure $ ObjBuiltIn BuiltInFirst
       "last" -> pure $ ObjBuiltIn BuiltInLast
       "rest" -> pure $ ObjBuiltIn BuiltInRest
+      "push" -> pure $ ObjBuiltIn BuiltInPush
       _ -> throwE $ "Identifier not found: `" ++ ident ++ "`"
 evalExpr (Ast.FnLit params body) = do
   env <- lift get
@@ -82,50 +83,21 @@ evalExpr (Ast.Index lhs idx) = do
     (lhs'', idx'') -> throwE $
       "Invalid index expr: " ++ objType lhs'' ++ "[" ++ objType idx'' ++ "]"
   where
-    indexArray items i'
-      | i' < 0 || i' >= length items = ObjNull
-      | otherwise = items !! i'
-evalExpr (Ast.Call fn args) = do
-  fn' <- evalExpr fn
-  case fn' of
+    indexArray items i
+      | i < 0 || i >= length items = ObjNull
+      | otherwise = items !! i
+evalExpr (Ast.Call fnExpr argExprs) = do
+  fn <- evalExpr fnExpr
+  args <- mapM evalExpr argExprs
+  case fn of
     (ObjFn params body outer) -> do
       when (length params /= length args) $ throwE $
         "Incorrect num args, expected: " ++ show (length params)
-      args' <- mapM evalExpr args
-      let fnEnv = extendFnEnv outer params args'
-      liftEither $ evalIn (Ast.BlockNode body) fnEnv
-    (ObjBuiltIn BuiltInLen) -> do
-      args' <- mapM evalExpr args
-      case args' of
-        [ObjString string] -> pure $ ObjInt $ length string
-        [ObjArray elems] -> pure $ ObjInt $ length elems
-        [obj] -> throwE $ "Argument to `len` not supported, got " ++ objType obj
-        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
-    (ObjBuiltIn BuiltInFirst) -> do
-      args' <- mapM evalExpr args
-      case args' of
-        [ObjArray elems] -> pure $ if null elems then ObjNull else head elems
-        [obj] -> throwE $ "Argument to `first` not supported, got " ++ objType obj
-        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
-    (ObjBuiltIn BuiltInLast) -> do
-      args' <- mapM evalExpr args
-      case args' of
-        [ObjArray elems] -> pure $ if null elems then ObjNull else last elems
-        [obj] -> throwE $ "Argument to `last` not supported, got " ++ objType obj
-        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
-    (ObjBuiltIn BuiltInRest) -> do
-      args' <- mapM evalExpr args
-      case args' of
-        [ObjArray []] -> pure ObjNull
-        [ObjArray objs] -> pure $ ObjArray $ tail objs
-        [obj] -> throwE $ "Argument to `rest` not supported, got " ++ objType obj
-        objs -> throwE $ "Wrong num args, expected 1, got " ++ show (length objs)
+      env <- get
+      let fnEnv = extendFnEnv (Env.chain env outer) params args
+      liftEither $ unwrapReturn <$> evalIn (Ast.BlockNode body) fnEnv
+    (ObjBuiltIn builtin) -> callBuiltIn builtin args
     obj -> throwE $ "Not a function: " ++ objType obj
-
-extendFnEnv :: Env -> [String] -> [Object] -> Env
-extendFnEnv fnEnv params args = foldl
-  (\env (ident, obj) -> Env.bind ident obj env)
-  (Env.enclosed fnEnv) (zip params args)
 
 evalInfixExpr :: Ast.Expr -> Ast.InfixOp -> Ast.Expr -> EvalResult
 evalInfixExpr lhs op rhs = do
@@ -145,6 +117,43 @@ evalInfixExpr lhs op rhs = do
     (ObjBool lval, Ast.InfixNotEq, ObjBool rval) -> pure $ ObjBool (lval /= rval)
     (ObjString _, Ast.InfixMinus, ObjString _) -> throwE "Unknown operator: STRING - STRING"
     _ -> throwE $ "Type mismatch: " ++ objType lhs' ++ " " ++ Ast.lexeme op ++ " " ++ objType rhs'
+
+callBuiltIn :: Env.BuiltIn -> [Object] -> EvalResult
+callBuiltIn builtin args = case builtin of
+    BuiltInLen -> do
+      case args of
+        [ObjString string] -> pure $ ObjInt $ length string
+        [ObjArray elems] -> pure $ ObjInt $ length elems
+        _ -> builtInError args "Argument to `len` not supported" 1
+    BuiltInFirst -> do
+      case args of
+        [ObjArray elems] -> pure $ if null elems then ObjNull else head elems
+        _ -> builtInError args "Argument to `first` not supported" 1
+    BuiltInLast -> do
+      case args of
+        [ObjArray elems] -> pure $ if null elems then ObjNull else last elems
+        _ -> builtInError args "Argument to `last` not supported" 1
+    BuiltInRest -> do
+      case args of
+        [ObjArray []] -> pure ObjNull
+        [ObjArray objs] -> pure $ ObjArray $ tail objs
+        _ -> builtInError args "Argument to `rest` not supported" 1
+    BuiltInPush -> do
+      case args of
+        [ObjArray array, obj] -> pure $ ObjArray (array ++ [obj])
+        _ -> builtInError args "Argument to `push` must be ARRAY" 2
+
+builtInError :: [Object] -> String -> Int -> EvalResult
+builtInError args msg arity
+  | length args == arity = throwE $ msg ++ ", got " ++ objType (head args)
+  | otherwise = throwE $
+      "Wrong num args, expected " ++ show arity ++ ", got " ++ show (length args)
+
+extendFnEnv :: Env -> [String] -> [Object] -> Env
+extendFnEnv fnEnv params args =
+  foldl
+    (\env (ident, obj) -> Env.bind ident obj env)
+    (Env.enclosed fnEnv) (zip params args)
 
 -- helpers
 

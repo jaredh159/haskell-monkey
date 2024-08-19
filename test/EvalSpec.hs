@@ -91,9 +91,22 @@ spec = do
     eval "first([])" `shouldBe` ObjNull
     eval "last([1, 2, 3])" `shouldBe` ObjInt 3
     eval "last([])" `shouldBe` ObjNull
-    -- eval "rest([1, 2, 3])" `shouldBe` ObjArray [ObjInt 2, ObjInt 3]
-    -- eval "rest([1, 2])" `shouldBe` ObjArray [ObjInt 2]
-    -- eval "rest([])" `shouldBe` ObjNull
+    eval "rest([1, 2, 3])" `shouldBe` ObjArray [ObjInt 2, ObjInt 3]
+    eval "rest([1, 2])" `shouldBe` ObjArray [ObjInt 2]
+    eval "rest([])" `shouldBe` ObjNull
+    eval "push([], 1)" `shouldBe` ObjArray [ObjInt 1]
+    eval "push([1], 2)" `shouldBe` ObjArray [ObjInt 1, ObjInt 2]
+
+  it "should evaluate recursive functions" $ do
+    let prog = "let fb = fn(x) { if (x == 0) {0} else {x + fb(x - 1)} }; fb(5);"
+    eval prog `shouldBe` ObjInt 15
+
+  it "should evaluate mutually recursive functions" $ do
+    let isEven = "let isEven = fn(n) { if (n == 0) { true } else { isOdd(n - 1) } };"
+    let isOdd = "let isOdd = fn(n) { if (n == 0) { false } else { isEven(n - 1) } };"
+    eval (isEven ++ isOdd ++ "isEven(4)") `shouldBe` ObjBool True
+    eval (isEven ++ isOdd ++ "isEven(5)") `shouldBe` ObjBool False
+    eval (isEven ++ isOdd ++ "isOdd(4)") `shouldBe` ObjBool False
 
   it "should evaluate array literals" $ do
     eval "[1, 2 * 2, 3 + 3]" `shouldBe` ObjArray [ObjInt 1, ObjInt 4, ObjInt 6]

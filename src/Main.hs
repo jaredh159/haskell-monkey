@@ -1,6 +1,7 @@
 import System.IO (stdout, hFlush)
 import System.Environment (getArgs)
 import Control.Monad (void, when)
+import Data.List (intercalate)
 
 import Lexer
 import Parser (parseProgram)
@@ -65,7 +66,7 @@ showT ObjNull = grey "null"
 showT (ObjFn {}) = "<fn>"
 showT (ObjString string) = cyan $ "\"" ++ string ++ "\""
 showT (ObjBuiltIn _) = grey "<builtin fn>"
-showT (ObjArray objs) = "[" ++ unwords (map showT objs) ++ "]"
+showT (ObjArray objs) = "[" ++ intercalate ", " (map showT objs) ++ "]"
 showT (ObjReturn _) = undefined
 
 scrollTop :: IO ()

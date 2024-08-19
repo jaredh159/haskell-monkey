@@ -7,6 +7,7 @@ module Env
   , BuiltIn(..)
   , Object(..)
   , objType
+  , chain
   ) where
 
 import qualified Data.Map as M
@@ -27,9 +28,17 @@ get ident (E store outer) = M.lookup ident store <|> (outer >>= get ident)
 enclosed :: Env -> Env
 enclosed env = E M.empty (Just env)
 
--- object
+chain :: Env -> Env -> Env
+chain (E store Nothing) outer = E store (Just outer)
+chain (E store (Just outer)) outer' = E store (Just (chain outer outer'))
 
-data BuiltIn = BuiltInLen | BuiltInPuts | BuiltInFirst | BuiltInLast | BuiltInRest
+data BuiltIn =
+    BuiltInLen
+  | BuiltInPuts
+  | BuiltInFirst
+  | BuiltInLast
+  | BuiltInRest
+  | BuiltInPush
   deriving (Show, Eq)
 
 data Object =
