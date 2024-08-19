@@ -7,12 +7,14 @@ module Env
   , BuiltIn(..)
   , Object(..)
   , objType
+  , printObj
   , chain
   ) where
 
 import qualified Data.Map as M
 import qualified Ast
 import Control.Applicative ((<|>))
+import Data.List (intercalate)
 
 data Env = E (M.Map String Object) (Maybe Env) deriving (Eq, Show)
 
@@ -61,3 +63,14 @@ objType (ObjReturn _) = "RETURN"
 objType (ObjBuiltIn _) = "BUILTIN"
 objType (ObjArray _) = "ARRAY"
 objType (ObjFn {}) = "FN"
+
+printObj :: Object -> String
+printObj (ObjInt i) = show i
+printObj (ObjBool True) = "true"
+printObj (ObjBool False) = "false"
+printObj ObjNull = "null"
+printObj (ObjFn {}) = "<fn>"
+printObj (ObjString string) = "\"" ++ string ++ "\""
+printObj (ObjBuiltIn _) = "<builtin fn>"
+printObj (ObjArray objs) = "[" ++ intercalate ", " (map printObj objs) ++ "]"
+printObj (ObjReturn _) = error "unreachable"

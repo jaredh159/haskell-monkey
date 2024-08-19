@@ -67,7 +67,7 @@ showT (ObjFn {}) = "<fn>"
 showT (ObjString string) = cyan $ "\"" ++ string ++ "\""
 showT (ObjBuiltIn _) = grey "<builtin fn>"
 showT (ObjArray objs) = "[" ++ intercalate ", " (map showT objs) ++ "]"
-showT (ObjReturn _) = undefined
+showT (ObjReturn _) = error "unreachable"
 
 scrollTop :: IO ()
 scrollTop = putStr "\ESC[H"

@@ -13,6 +13,7 @@ import Control.Monad.State (MonadTrans (lift), MonadState (get), modify)
 import Control.Monad.Trans.Except (ExceptT, throwE, runExceptT)
 import qualified Data.Map as M
 import Control.Monad.Error.Class (liftEither)
+import GHC.IO (unsafePerformIO)
 
 type EvalResult = ExceptT Error (State Env) Object
 type Error = String
@@ -70,6 +71,7 @@ evalExpr (Ast.Ident ident) = do
       "last" -> pure $ ObjBuiltIn BuiltInLast
       "rest" -> pure $ ObjBuiltIn BuiltInRest
       "push" -> pure $ ObjBuiltIn BuiltInPush
+      "puts" -> pure $ ObjBuiltIn BuiltInPuts
       _ -> throwE $ "Identifier not found: `" ++ ident ++ "`"
 evalExpr (Ast.FnLit params body) = do
   env <- lift get
@@ -142,6 +144,9 @@ callBuiltIn builtin args = case builtin of
       case args of
         [ObjArray array, obj] -> pure $ ObjArray (array ++ [obj])
         _ -> builtInError args "Argument to `push` must be ARRAY" 2
+    BuiltInPuts ->
+      let output = unlines $ map Env.printObj args in
+      unsafePerformIO (putStr output) `seq` pure ObjNull
 
 builtInError :: [Object] -> String -> Int -> EvalResult
 builtInError args msg arity
