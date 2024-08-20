@@ -19,6 +19,7 @@ data TokenType =
   | Plus
   | Comma
   | SemiColon
+  | Colon
   | LParen
   | RParen
   | LBrace

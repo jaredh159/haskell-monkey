@@ -25,6 +25,7 @@ nextToken (ch:rest)
   | ch == '}' = Just (token RBrace [ch], rest)
   | ch == ',' = Just (token Comma [ch], rest)
   | ch == ';' = Just (token SemiColon [ch], rest)
+  | ch == ':' = Just (token Colon [ch], rest)
   | ch == '[' = Just (token LBracket [ch], rest)
   | ch == ']' = Just (token RBracket [ch], rest)
   | ch == '=' = case rest of

@@ -3,6 +3,7 @@ module Parser
   ) where
 
 import Control.Arrow (first)
+import qualified Data.Map as M
 
 import qualified Token as T
 import qualified Ast
@@ -87,6 +88,7 @@ prefixParser (T.Tok T.LParen _) = Just parseGroupedExpr
 prefixParser (T.Tok T.If _) = Just parseIfExpr
 prefixParser (T.Tok T.Function _) = Just parseFunction
 prefixParser (T.Tok T.LBracket _) = Just parseArrayLitExpr
+prefixParser (T.Tok T.LBrace _) = Just (parseHashLitExpr M.empty)
 prefixParser _ = Nothing
 
 parsePrefixExpr :: Ast.PrefixOp -> [T.Token] -> ParseResult (Maybe Ast.Expr)
@@ -142,6 +144,26 @@ parseArrayLitExpr :: PrefixParseFn
 parseArrayLitExpr ts = do
   (exprs, ts') <- parseExprList T.RBracket [] ts
   Right (Just $ Ast.ArrayLit exprs, ts')
+
+parseHashLitExpr :: M.Map Ast.Expr Ast.Expr -> PrefixParseFn
+parseHashLitExpr _ [] = Left "Expected Tok.RBrace, found EOF"
+parseHashLitExpr hashmap (T.Tok T.RBrace _:rest) = Right (Just $ Ast.HashLit hashmap, rest)
+parseHashLitExpr hashmap ts = do
+  (maybeKey, ts') <- parseExpr Lowest ts
+  case (maybeKey, ts') of
+    (Just key, T.Tok T.Colon _:ts'') -> do
+      (maybeVal, ts''') <- parseExpr Lowest ts''
+      case (maybeVal, ts''') of
+        (Just val, T.Tok T.RBrace _:rest) ->
+          Right (Just $ Ast.HashLit (M.insert key val hashmap), rest)
+        (Just val, T.Tok T.Comma _:rest) ->
+          parseHashLitExpr (M.insert key val hashmap) rest
+        (Just _, (T.Tok kind _):_) -> Left $ "Expected Tok.Comma or Tok.RBrace, found " ++ show kind
+        (Just _, []) -> Left "Expected Tok.Comma or Tok.RBrace, found EOF"
+        (Nothing, _) -> Left "Failed to parse expr for HashLit value"
+    (Just _, (T.Tok kind _):_) -> Left $ "Expected Tok.Colon, found " ++ show kind
+    (Just _, []) -> Left "Expected Tok.Colon, found EOF"
+    (Nothing, _) -> Left "Failed to parse expr for HashLit key"
 
 -- infix expressons
 

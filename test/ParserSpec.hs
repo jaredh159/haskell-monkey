@@ -1,10 +1,12 @@
 module ParserSpec (spec, program) where
 
 import Test.Hspec
+import qualified Data.Map as M
+import Data.Either (fromRight)
+
 import Parser
 import qualified Ast
 import Token
-import Data.Either (fromRight)
 
 spec :: Spec
 spec = do
@@ -36,13 +38,31 @@ spec = do
     fmap boolVal (program input) `shouldBe` [True, False]
 
   it "should parse array literals" $ do
-    program "[1]" `shouldBe` [Ast.ExprStmt (Ast.ArrayLit [Ast.IntLit 1])]
-    program "[1, 2]" `shouldBe` [Ast.ExprStmt (Ast.ArrayLit [Ast.IntLit 1, Ast.IntLit 2])]
-    program "[]" `shouldBe` [Ast.ExprStmt (Ast.ArrayLit [])]
+    singleExpr "[1]" `shouldBe` Ast.ArrayLit [Ast.IntLit 1]
+    singleExpr "[1, 2]" `shouldBe` Ast.ArrayLit [Ast.IntLit 1, Ast.IntLit 2]
+    singleExpr "[]" `shouldBe` Ast.ArrayLit []
+
+  it "should parse hash literals literals" $ do
+    let input = "{\"one\": 1, \"two\": 2, \"three\": 3}"
+    singleExpr input `shouldBe` Ast.HashLit (M.fromList
+          [ (Ast.StringLit "one", Ast.IntLit 1)
+          , (Ast.StringLit "two", Ast.IntLit 2)
+          , (Ast.StringLit "three", Ast.IntLit 3) ])
+    let input = "{1: \"one\", 2: \"two\", 3: \"three\"}"
+    singleExpr input `shouldBe` Ast.HashLit (M.fromList
+          [ (Ast.IntLit 1, Ast.StringLit "one")
+          , (Ast.IntLit 2, Ast.StringLit "two")
+          , (Ast.IntLit 3, Ast.StringLit "three") ])
+    let input'' = "{true: 1, false: 1 + 1}"
+    let onePlusOne = Ast.Infix(Ast.IntLit 1) Ast.InfixPlus (Ast.IntLit 1)
+    singleExpr input'' `shouldBe` Ast.HashLit (M.fromList
+          [ (Ast.BoolLit True, Ast.IntLit 1)
+          , (Ast.BoolLit False, onePlusOne) ])
+    singleExpr "{}" `shouldBe` Ast.HashLit M.empty
 
   it "should parse index expressions" $ do
     let idx = Ast.Infix (Ast.IntLit 1) Ast.InfixPlus (Ast.IntLit 1)
-    program "foo[1 + 1]" `shouldBe` [Ast.ExprStmt (Ast.Index (Ast.Ident "foo") idx)]
+    singleExpr "foo[1 + 1]" `shouldBe` Ast.Index (Ast.Ident "foo") idx
 
   it "should parse string literal expressions" $ do
     let input = "\"foobar\"; \"hello world\";"

@@ -9,8 +9,10 @@ module Ast
   , Program
   ) where
 
-import Token as T
 import Data.List (intercalate)
+import qualified Data.Map as M
+
+import Token as T
 
 data Node =
     ProgNode [Stmt]
@@ -23,7 +25,7 @@ data Stmt =
     LetStmt String Expr
   | ReturnStmt Expr
   | ExprStmt Expr
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 type Program = [Stmt]
 
@@ -36,18 +38,19 @@ data InfixOp =
   | InfixGt
   | InfixEq
   | InfixNotEq
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 data PrefixOp =
     PrefixBang
   | PrefixMinus
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 data Expr =
     BoolLit Bool
   | IntLit Int
   | StringLit String
   | ArrayLit [Expr]
+  | HashLit (M.Map Expr Expr)
   | Prefix PrefixOp Expr
   | Infix Expr InfixOp Expr
   | Index Expr Expr
@@ -55,7 +58,7 @@ data Expr =
   | FnLit [String] [Stmt]
   | Call Expr [Expr]
   | If { cond :: Expr, conseq :: [Stmt], alt :: Maybe [Stmt] }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 -- Stringify
 
@@ -81,6 +84,9 @@ instance Stringify Expr where
   stringify (Call fn args) = s fn ++ "(" ++ intercalate ", " (map s args) ++ ")"
   stringify (ArrayLit exprs) = "[" ++ intercalate ", " (map s exprs) ++ "]"
   stringify (Index lhs index) = "(" ++ s lhs ++ "[" ++ s index ++ "])"
+  stringify (HashLit hashmap) =
+    let entries = map (\(key, val) -> s key ++ ": " ++ s val) (M.toList hashmap) in
+    "{" ++ intercalate ", " entries ++ "}"
   stringify expr@(Ast.If {}) =
     "if " ++ s (cond expr) ++ " " ++ s (conseq expr) ++ (case alt expr of
       Nothing -> ""

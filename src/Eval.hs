@@ -100,6 +100,7 @@ evalExpr (Ast.Call fnExpr argExprs) = do
       liftEither $ unwrapReturn <$> evalIn (Ast.BlockNode body) fnEnv
     (ObjBuiltIn builtin) -> callBuiltIn builtin args
     obj -> throwE $ "Not a function: " ++ objType obj
+evalExpr (Ast.HashLit _) = error "TODO: eval hash lit"
 
 evalInfixExpr :: Ast.Expr -> Ast.InfixOp -> Ast.Expr -> EvalResult
 evalInfixExpr lhs op rhs = do
