@@ -1,10 +1,10 @@
 module EvalSpec (spec) where
 
 import Test.Hspec
+import qualified Data.Map as M
 
 import Env (Object(..))
 import qualified Ast
-
 import qualified Eval
 import ParserSpec (program)
 
@@ -121,6 +121,29 @@ spec = do
     eval "let a = [1, 2, 3]; a[1 + 1]" `shouldBe` ObjInt 3
     eval "let a = [1, 2, 3]; a[0] + a[1] + a[2]" `shouldBe` ObjInt 6
     eval "let a = [1, 2, 3]; let i = a[0]; a[i]" `shouldBe` ObjInt 2
+
+  it "should evaluate hash literals" $ do
+    let prog = "let two = \"two\"; {\"one\": 10 - 9, two: 1 + 1,\
+      \\"thr\" + \"ee\": 6 / 2, 4:4, true: 5, false: 6}"
+    eval prog `shouldBe` ObjHash (M.fromList
+      [ (ObjString "one", ObjInt 1)
+      , (ObjString "two", ObjInt 2)
+      , (ObjString "three", ObjInt 3)
+      , (ObjInt 4, ObjInt 4)
+      , (ObjBool True, ObjInt 5)
+      , (ObjBool False, ObjInt 6)])
+
+  it "should evaluate hash index expressions" $ do
+    eval "{\"foo\": 5}[\"foo\"]" `shouldBe` ObjInt 5
+    eval "{\"foo\": 5}[\"bar\"]" `shouldBe` ObjNull
+    eval "let k = \"foo\";{\"foo\": 5}[k]" `shouldBe` ObjInt 5
+    eval "{}[\"foo\"]" `shouldBe` ObjNull
+    eval "{5: 5}[5]" `shouldBe` ObjInt 5
+    eval "{true: 5}[true]" `shouldBe` ObjInt 5
+    eval "{false: 5}[false]" `shouldBe` ObjInt 5
+    eval "let id = fn(x) {x}; {id: 5}[id]" `shouldBe` ObjInt 5
+    eval "let id = fn(x) {x}; {id: 5}[fn(x) {x}]" `shouldBe` ObjNull
+    eval "let id = fn(x) {x}; {id: 5}[fn(y) {y}]" `shouldBe` ObjNull
 
   it "should report errors" $ do
     evalE "5 + true" `shouldBe` "Type mismatch: INTEGER + BOOLEAN"

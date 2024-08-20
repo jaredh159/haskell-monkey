@@ -14,6 +14,7 @@ import Control.Monad.Trans.Except (ExceptT, throwE, runExceptT)
 import qualified Data.Map as M
 import Control.Monad.Error.Class (liftEither)
 import GHC.IO (unsafePerformIO)
+import Data.Maybe (fromMaybe)
 
 type EvalResult = ExceptT Error (State Env) Object
 type Error = String
@@ -82,6 +83,7 @@ evalExpr (Ast.Index lhs idx) = do
   idx' <- evalExpr idx
   case (lhs', idx') of
     (ObjArray elems, ObjInt i) -> pure $ indexArray elems i
+    (ObjHash hashmap, idx'') -> pure $ fromMaybe ObjNull (M.lookup idx'' hashmap)
     (lhs'', idx'') -> throwE $
       "Invalid index expr: " ++ objType lhs'' ++ "[" ++ objType idx'' ++ "]"
   where
@@ -100,7 +102,10 @@ evalExpr (Ast.Call fnExpr argExprs) = do
       liftEither $ unwrapReturn <$> evalIn (Ast.BlockNode body) fnEnv
     (ObjBuiltIn builtin) -> callBuiltIn builtin args
     obj -> throwE $ "Not a function: " ++ objType obj
-evalExpr (Ast.HashLit _) = error "TODO: eval hash lit"
+evalExpr (Ast.HashLit exprMap) = do
+  keys <- mapM evalExpr (M.keys exprMap)
+  values <- mapM evalExpr (M.elems exprMap)
+  pure $ ObjHash $ M.fromList $ zip keys values
 
 evalInfixExpr :: Ast.Expr -> Ast.InfixOp -> Ast.Expr -> EvalResult
 evalInfixExpr lhs op rhs = do

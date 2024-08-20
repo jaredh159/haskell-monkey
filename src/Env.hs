@@ -16,7 +16,8 @@ import qualified Ast
 import Control.Applicative ((<|>))
 import Data.List (intercalate)
 
-data Env = E (M.Map String Object) (Maybe Env) deriving (Eq, Show)
+data Env = E (M.Map String Object) (Maybe Env)
+  deriving (Eq, Show, Ord)
 
 empty :: Env
 empty = E M.empty Nothing
@@ -41,7 +42,7 @@ data BuiltIn =
   | BuiltInLast
   | BuiltInRest
   | BuiltInPush
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 data Object =
     ObjNull
@@ -51,8 +52,9 @@ data Object =
   | ObjReturn Object
   | ObjBuiltIn BuiltIn
   | ObjArray [Object]
+  | ObjHash (M.Map Object Object)
   | ObjFn [String] [Ast.Stmt] Env
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 objType :: Object -> String
 objType ObjNull = "NULL"
@@ -63,6 +65,7 @@ objType (ObjReturn _) = "RETURN"
 objType (ObjBuiltIn _) = "BUILTIN"
 objType (ObjArray _) = "ARRAY"
 objType (ObjFn {}) = "FN"
+objType (ObjHash {}) = "HASH"
 
 printObj :: Object -> String
 printObj (ObjInt i) = show i
@@ -74,3 +77,6 @@ printObj (ObjString string) = "\"" ++ string ++ "\""
 printObj (ObjBuiltIn _) = "<builtin fn>"
 printObj (ObjArray objs) = "[" ++ intercalate ", " (map printObj objs) ++ "]"
 printObj (ObjReturn _) = error "unreachable"
+printObj (ObjHash hashmap) =
+  let entries = map (\(key, val) -> printObj key ++ ": " ++ printObj val) (M.toList hashmap) in
+  "{" ++ intercalate ", " entries ++ "}"

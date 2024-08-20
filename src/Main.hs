@@ -2,6 +2,7 @@ import System.IO (stdout, hFlush)
 import System.Environment (getArgs)
 import Control.Monad (void, when)
 import Data.List (intercalate)
+import qualified Data.Map as M
 
 import Lexer
 import Parser (parseProgram)
@@ -68,6 +69,9 @@ showT (ObjString string) = cyan $ "\"" ++ string ++ "\""
 showT (ObjBuiltIn _) = grey "<builtin fn>"
 showT (ObjArray objs) = "[" ++ intercalate ", " (map showT objs) ++ "]"
 showT (ObjReturn _) = error "unreachable"
+showT (ObjHash hmap) =
+  let entries = map (\(key, val) -> showT key ++ ": " ++ showT val) (M.toList hmap) in
+  "{" ++ intercalate ", " entries ++ "}"
 
 scrollTop :: IO ()
 scrollTop = putStr "\ESC[H"
